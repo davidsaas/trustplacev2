@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { ArrowRight, Shield, MapPin, Star, CheckCircle, Menu, X } from "lucide-react";
+import { MapPin, Star, Menu, X } from "lucide-react";
 
 export default function LandingPage() {
   const router = useRouter();
@@ -37,14 +37,6 @@ export default function LandingPage() {
     
     return () => clearInterval(interval);
   }, [keywords.length]);
-
-  const handleGetStarted = () => {
-    if (user) {
-      router.push("/dashboard");
-    } else {
-      router.push("/login");
-    }
-  };
 
   return (
     <div className="min-h-screen flex flex-col">

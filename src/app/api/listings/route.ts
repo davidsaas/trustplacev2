@@ -2,6 +2,30 @@ import { NextResponse } from 'next/server';
 
 const LA_DATASET_URL = 'https://api.apify.com/v2/datasets/zaa5uKgGaiCddkejc/items?clean=true&format=json';
 
+// Define interface for the listing data
+interface ApifyListing {
+  id: string;
+  name: string;
+  url: string;
+  neighborhood?: string;
+  location?: {
+    lat?: number;
+    lng?: number;
+  };
+  price?: string | number;
+  images?: string[];
+  description?: string;
+  host?: {
+    name?: string;
+    id?: string;
+    isSuperhost?: boolean;
+  };
+  amenities?: string[];
+  rating?: number;
+  reviewsCount?: number;
+  reviews?: any[];
+}
+
 export async function GET() {
   try {
     const response = await fetch(LA_DATASET_URL);
@@ -13,7 +37,7 @@ export async function GET() {
     const listings = await response.json();
     
     // Process and transform the data
-    const processedListings = listings.map((listing: any) => ({
+    const processedListings = listings.map((listing: ApifyListing) => ({
       id: listing.id,
       title: listing.name,
       url: listing.url,

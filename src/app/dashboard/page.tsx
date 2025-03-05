@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { fetchLAListings, ApifyListing, normalizeAirbnbUrl } from "@/lib/apify";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Shield, MapPin, Star, ArrowRight, AlertTriangle } from "lucide-react";
+import { Shield, MapPin, Star, AlertTriangle } from "lucide-react";
 
 export default function Dashboard() {
   const [url, setUrl] = useState("");

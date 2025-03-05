@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -160,14 +159,14 @@ export default function ReportPage() {
   const [activeSection, setActiveSection] = useState("overview");
 
   // Refs for each section
-  const sectionRefs = {
+  const sectionRefs = useMemo(() => ({
     overview: useRef<HTMLDivElement>(null),
     location: useRef<HTMLDivElement>(null),
     "safety-metrics": useRef<HTMLDivElement>(null),
     community: useRef<HTMLDivElement>(null),
     reviews: useRef<HTMLDivElement>(null),
     alternatives: useRef<HTMLDivElement>(null)
-  };
+  }), []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -264,7 +263,7 @@ export default function ReportPage() {
     );
 
     // Observe all section refs
-    Object.entries(sectionRefs).forEach(([id, ref]) => {
+    Object.entries(sectionRefs).forEach(([_id, ref]) => {
       if (ref.current) {
         observer.observe(ref.current);
       }
