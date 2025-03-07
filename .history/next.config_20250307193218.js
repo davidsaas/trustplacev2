@@ -22,18 +22,6 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   output: 'standalone',
-  experimental: {
-    serverComponentsExternalPackages: ['@prisma/client', 'bcrypt'],
-  },
-  // Configure for flexible rendering
-  serverRuntimeConfig: {
-    // Will only be available on the server side
-    PROJECT_ROOT: __dirname,
-  },
-  publicRuntimeConfig: {
-    // Will be available on both server and client
-    API_URL: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000',
-  },
 };
 
 module.exports = nextConfig; 

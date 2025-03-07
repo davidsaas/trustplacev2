@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,25 +8,35 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Separator } from "@/components/ui/separator";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 
 // Component that uses useSearchParams
-function SignUpContent() {
+function LoginContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
   const searchParams = useSearchParams();
-  const { signUp, signInWithGoogle, loading, error } = useAuth();
+  const { signIn, signInWithGoogle, loading, error } = useAuth();
   
-  // Get redirectTo from query parameters (for consistency with login page)
+  // Get redirectTo from query parameters (added by middleware)
   const redirectTo = searchParams?.get("redirectTo") || undefined;
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  useEffect(() => {
+    // Check for message in URL (e.g., from signup page)
+    const urlMessage = searchParams?.get("message");
+    if (urlMessage) {
+      setMessage(urlMessage);
+    }
+  }, [searchParams]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    await signUp(email, password);
+    await signIn(email, password, redirectTo);
   };
-  
-  const handleGoogleSignUp = async () => {
+
+  const handleGoogleLogin = async () => {
     await signInWithGoogle(redirectTo);
   };
 
@@ -39,12 +49,18 @@ function SignUpContent() {
             <span className="text-sm">Back</span>
           </Link>
         </div>
-        <CardTitle className="text-2xl font-bold text-center mt-4">Create an account</CardTitle>
+        <CardTitle className="text-2xl font-bold text-center mt-4">Welcome back</CardTitle>
         <CardDescription className="text-center">
-          Enter your email and password to create your account
+          Sign in to your account to continue
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {message && (
+          <Alert className="mb-4 bg-green-50 text-green-800 border-green-200">
+            <AlertDescription>{message}</AlertDescription>
+          </Alert>
+        )}
+        
         {error && (
           <Alert className="mb-4 bg-red-50 text-red-800 border-red-200">
             <AlertDescription>{error}</AlertDescription>
@@ -53,7 +69,7 @@ function SignUpContent() {
         
         <div className="space-y-4">
           <Button 
-            onClick={handleGoogleSignUp} 
+            onClick={handleGoogleLogin} 
             disabled={loading}
             className="w-full border border-gray-200 hover:bg-gray-50 text-gray-700"
             variant="outline"
@@ -69,11 +85,11 @@ function SignUpContent() {
               <span className="w-full border-t"></span>
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-muted-foreground">Or with email</span>
+              <span className="bg-white px-2 text-muted-foreground">Or continue with</span>
             </div>
           </div>
 
-          <form onSubmit={handleSignUp} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input 
@@ -86,27 +102,32 @@ function SignUpContent() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Link href="/forgot-password" className="text-xs text-blue-600 hover:text-blue-800">
+                  Forgot password?
+                </Link>
+              </div>
               <Input 
                 id="password" 
                 type="password" 
-                placeholder="••••••••" 
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating account..." : "Create Account"}
+              {loading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
         </div>
       </CardContent>
       <CardFooter className="flex flex-col">
         <p className="text-center text-sm text-muted-foreground">
-          Already have an account?{" "}
-          <Link href="/login" className="text-blue-600 hover:text-blue-800 font-semibold">
-            Sign In
+          Don&apos;t have an account?{" "}
+          <Link href="/signup" className="text-blue-600 hover:text-blue-800 font-semibold">
+            Sign Up
           </Link>
         </p>
       </CardFooter>
@@ -115,7 +136,7 @@ function SignUpContent() {
 }
 
 // Loading fallback
-function SignUpFallback() {
+function LoginFallback() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-1">
@@ -125,9 +146,9 @@ function SignUpFallback() {
             <span className="text-sm">Back</span>
           </Link>
         </div>
-        <CardTitle className="text-2xl font-bold text-center mt-4">Create an account</CardTitle>
+        <CardTitle className="text-2xl font-bold text-center mt-4">Welcome back</CardTitle>
         <CardDescription className="text-center">
-          Enter your email and password to create your account
+          Sign in to your account to continue
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -139,11 +160,11 @@ function SignUpFallback() {
   );
 }
 
-export default function SignUp() {
+export default function Login() {
   return (
     <div className="flex items-center justify-center min-h-screen p-4">
-      <Suspense fallback={<SignUpFallback />}>
-        <SignUpContent />
+      <Suspense fallback={<LoginFallback />}>
+        <LoginContent />
       </Suspense>
     </div>
   );

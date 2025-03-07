@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo, Suspense } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -77,8 +77,7 @@ const navigationSections = [
   { id: "alternatives", label: "Alternatives", icon: <StarIcon className="h-4 w-4" /> }
 ];
 
-// Component that uses useSearchParams
-function ReportContent() {
+export default function ReportPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const url = searchParams?.get("url");
@@ -785,27 +784,5 @@ function ReportContent() {
         </div>
       </div>
     </div>
-  );
-}
-
-// Loading fallback
-function ReportFallback() {
-  return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="p-4 max-w-7xl mx-auto">
-        <Skeleton className="h-8 w-1/2 mb-4" />
-        <Skeleton className="h-64 w-full mb-4" />
-        <Skeleton className="h-32 w-full mb-4" />
-        <Skeleton className="h-32 w-full" />
-      </div>
-    </div>
-  );
-}
-
-export default function ReportPage() {
-  return (
-    <Suspense fallback={<ReportFallback />}>
-      <ReportContent />
-    </Suspense>
   );
 }
