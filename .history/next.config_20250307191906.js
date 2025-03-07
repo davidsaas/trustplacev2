@@ -21,7 +21,13 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  output: 'standalone',
+  experimental: {
+    serverActions: {
+      allowedOrigins: ["localhost:3000", "*.vercel.app"],
+    },
+  },
+  trailingSlash: false,
+  reactStrictMode: true,
 };
 
 module.exports = nextConfig; 

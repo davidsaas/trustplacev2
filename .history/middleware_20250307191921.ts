@@ -28,32 +28,38 @@ const publicOnlyRoutes = [
  * This runs on all non-static routes to manage authentication state
  */
 export async function middleware(request: NextRequest) {
-  // Create response to modify
-  const res = NextResponse.next();
-  
-  // Setup Supabase auth client for middleware
-  const supabase = createMiddlewareClient({ req: request, res });
-  
-  // Refresh session to ensure auth state is current
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  
-  const path = request.nextUrl.pathname;
-  
-  // Protect private routes - redirect to login if not authenticated
-  if (protectedRoutes.some(route => path.startsWith(route)) && !session) {
-    const redirectUrl = new URL('/login', request.url);
-    redirectUrl.searchParams.set('redirectTo', path);
-    return NextResponse.redirect(redirectUrl);
+  try {
+    // Create response to modify
+    const res = NextResponse.next();
+    
+    // Setup Supabase auth client for middleware
+    const supabase = createMiddlewareClient({ req: request, res });
+    
+    // Refresh session to ensure auth state is current
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    
+    const path = request.nextUrl.pathname;
+    
+    // Protect private routes - redirect to login if not authenticated
+    if (protectedRoutes.some(route => path.startsWith(route)) && !session) {
+      const redirectUrl = new URL('/login', request.url);
+      redirectUrl.searchParams.set('redirectTo', path);
+      return NextResponse.redirect(redirectUrl);
+    }
+    
+    // Handle login/signup routes and root path - redirect to dashboard if already authenticated
+    if (publicOnlyRoutes.some(route => path === route) && session) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+    
+    return res;
+  } catch (error) {
+    console.error('Middleware error:', error);
+    // In case of error, just continue to the requested page
+    return NextResponse.next();
   }
-  
-  // Handle login/signup routes and root path - redirect to dashboard if already authenticated
-  if (publicOnlyRoutes.some(route => path === route) && session) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-  
-  return res;
 }
 
 /**
