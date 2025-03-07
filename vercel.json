@@ -1,9 +1,10 @@
 {
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
   "framework": "nextjs",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
   "outputDirectory": ".next",
-  "regions": ["sfo1"],
+  "devCommand": "npm run dev",
+  "regions": ["sfo1", "iad1"],
   "env": {
     "VERCEL_DEPLOYMENT": "true"
   }

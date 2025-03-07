@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -77,7 +77,8 @@ const navigationSections = [
   { id: "alternatives", label: "Alternatives", icon: <StarIcon className="h-4 w-4" /> }
 ];
 
-export default function ReportPage() {
+// Component that uses useSearchParams
+function ReportContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const url = searchParams?.get("url");
@@ -248,24 +249,16 @@ export default function ReportPage() {
         setSafetyMetrics(metrics);
         setSafetyReviews(reviews);
         setAlternatives(saferOptions);
-
-        // Enable safety insights if we have coordinates
-        if (matchingListing.location.coordinates.lat && matchingListing.location.coordinates.lng) {
-          console.log('Enabling safety insights with coordinates:', matchingListing.location.coordinates);
-          setShowSafetyInsights(true);
-        } else {
-          console.log('Missing coordinates:', matchingListing.location);
-        }
-
         setIsLoading(false);
       } catch (err) {
-        console.error('Error processing listing:', err);
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        console.error('Error fetching listing data:', err);
+        setError(err instanceof Error ? err.message : 'An unknown error occurred');
+        setIsLoading(false);
       }
     };
 
     initializeReport();
-  }, [url, router]);
+  }, [url]);
 
   // Intersection Observer to detect which section is in view
   useEffect(() => {
@@ -784,5 +777,40 @@ export default function ReportPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Loading fallback
+function ReportFallback() {
+  return (
+    <div className="min-h-screen p-4 md:p-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="h-6 w-40 bg-gray-200 animate-pulse rounded"></div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2 space-y-6">
+              <div className="h-64 bg-gray-200 animate-pulse rounded-lg"></div>
+              <div className="h-40 bg-gray-200 animate-pulse rounded-lg"></div>
+            </div>
+            <div className="h-80 bg-gray-200 animate-pulse rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main component with Suspense
+export default function ReportPage() {
+  return (
+    <Suspense fallback={<ReportFallback />}>
+      <ReportContent />
+    </Suspense>
   );
 }

@@ -21,7 +21,7 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  output: 'standalone',
+  output: 'serverless',
 };
 
 module.exports = nextConfig; 
