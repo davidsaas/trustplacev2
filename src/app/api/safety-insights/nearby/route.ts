@@ -1,12 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { findNearbyInsights } from '@/lib/safety-insights/processor';
 
-export async function GET(request: Request) {
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: NextRequest) {
   try {
-    const url = new URL(request.url);
-    const latitude = parseFloat(url.searchParams.get('latitude') || '');
-    const longitude = parseFloat(url.searchParams.get('longitude') || '');
-    const radius = parseFloat(url.searchParams.get('radius') || '2'); // Default 2km
+    const searchParams = request.nextUrl.searchParams;
+    const latitude = parseFloat(searchParams.get('latitude') || '');
+    const longitude = parseFloat(searchParams.get('longitude') || '');
+    const radius = parseFloat(searchParams.get('radius') || '2'); // Default 2km
     
     if (isNaN(latitude) || isNaN(longitude)) {
       return NextResponse.json(

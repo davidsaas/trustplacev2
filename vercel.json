@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "next build",
   "installCommand": "npm install",
   "framework": "nextjs",
   "outputDirectory": ".next",
@@ -26,5 +26,9 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/$1" }
   ]
 } 

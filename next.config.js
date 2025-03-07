@@ -26,6 +26,8 @@ const nextConfig = {
       allowedOrigins: ["localhost:3000", "*.vercel.app"],
     },
   },
+  trailingSlash: false,
+  reactStrictMode: true,
 };
 
 module.exports = nextConfig; 
