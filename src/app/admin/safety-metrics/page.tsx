@@ -21,7 +21,7 @@ export default function SafetyMetricsAdmin() {
   }>(null);
 
   // Check if the user is authenticated and is an admin
-  const isAdmin = user?.email?.endsWith('@trustplacev2.vercel.app');
+  const isAdmin = user?.email?.endsWith('@trustplace.vercel.app');
 
   const checkStatus = async () => {
     try {
