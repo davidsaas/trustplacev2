@@ -45,7 +45,7 @@ const nextConfig = {
         has: [
           {
             type: 'host',
-            value: '(?!localhost).*\\.vercel\\.app',
+            value: '(?!trustplace\\.vercel\\.app)(?!localhost).*\\.vercel\\.app',
           },
         ],
         permanent: true,
