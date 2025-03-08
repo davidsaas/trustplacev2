@@ -1,0 +1,13 @@
+{
+  "name": "safety-metrics-scheduler",
+  "version": "1.0.0",
+  "description": "Scheduler for safety metrics processing",
+  "main": "scheduler.js",
+  "scripts": {
+    "start": "node scheduler.js"
+  },
+  "dependencies": {
+    "@radix-ui/react-accordion": "^1.2.3",
+    "node-cron": "^3.0.2"
+  }
+}
