@@ -49,7 +49,7 @@ const nextConfig = {
           },
         ],
         permanent: true,
-        destination: process.env.NEXT_PUBLIC_APP_URL || 'https://trustplace.vercel.app/:path*',
+        destination: process.env.NEXT_PUBLIC_APP_URL || 'https://trustplacev2.vercel.app/:path*',
       });
     }
     

@@ -1,9 +1,0 @@
-.git
-node_modules
-.env*.local
-.next
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.history
-.DS_Store 
