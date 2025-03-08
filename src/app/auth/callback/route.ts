@@ -13,6 +13,16 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code);
   }
 
+  // Construct the full URL for redirection
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+  
+  // Ensure redirectTo starts with a slash
+  const normalizedRedirectTo = redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`;
+  
+  // Combine base URL with redirect path
+  const redirectUrl = new URL(normalizedRedirectTo, baseUrl);
+
   // Redirect to the target page after authentication
-  return NextResponse.redirect(new URL(redirectTo, request.url));
+  return NextResponse.redirect(redirectUrl);
 } 

@@ -181,10 +181,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setError(null);
       
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : window.location.origin);
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`,
+          redirectTo: `${baseUrl}/auth/callback${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
