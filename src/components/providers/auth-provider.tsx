@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { Database } from "@/lib/supabase-types";
+import { getBaseUrl, getAbsoluteUrl } from "@/lib/env";
 
 type UserDetails = Database["public"]["Tables"]["users"]["Row"] | null;
 
@@ -157,11 +158,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setError(null);
       
+      // Get base URL for the redirect
+      const baseUrl = getBaseUrl();
+      const callbackUrl = `${baseUrl}/auth/callback`;
+      
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: callbackUrl,
         },
       });
 
@@ -181,13 +186,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setError(null);
       
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : window.location.origin);
+      // Get base URL directly from our environment utility
+      const baseUrl = getBaseUrl();
+      const callbackUrl = `${baseUrl}/auth/callback`;
+      
+      // Add redirectTo as a query parameter if provided
+      const callbackUrlWithRedirect = redirectTo 
+        ? `${callbackUrl}?redirectTo=${encodeURIComponent(redirectTo)}`
+        : callbackUrl;
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${baseUrl}/auth/callback${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`,
+          redirectTo: callbackUrlWithRedirect,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
