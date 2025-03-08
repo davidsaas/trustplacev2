@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Check, AlertTriangle, RefreshCw } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 
 export default function SafetyMetricsAdmin() {
   const { user } = useAuth();
