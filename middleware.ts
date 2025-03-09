@@ -25,6 +25,27 @@ const publicOnlyRoutes = [
 ];
 
 /**
+ * Get base URL for creating absolute URLs in middleware
+ * This is critical for ensuring redirects go to the correct domain
+ */
+const getBaseUrl = (request: NextRequest): string => {
+  // First priority: App URL from environment
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+  
+  // Second priority: Vercel URL
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  
+  // When all else fails, use the request host
+  const host = request.headers.get('host') || 'localhost:3000';
+  const protocol = host.includes('localhost') ? 'http' : 'https';
+  return `${protocol}://${host}`;
+};
+
+/**
  * Auth middleware for route protection
  * This runs on all non-static routes to manage authentication state
  */
@@ -42,19 +63,23 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getSession();
     
     const path = request.nextUrl.pathname;
+    const baseUrl = getBaseUrl(request);
     
     // Protect private routes - redirect to login if not authenticated
     if (protectedRoutes.some(route => path.startsWith(route))) {
       if (!session) {
-        const redirectUrl = new URL('/login', request.url);
-        redirectUrl.searchParams.set('redirectTo', path);
-        return NextResponse.redirect(redirectUrl);
+        // Use absolute URLs with the correct domain
+        const loginUrl = new URL('/login', baseUrl);
+        loginUrl.searchParams.set('redirectTo', path);
+        return NextResponse.redirect(loginUrl);
       }
     }
     
     // Handle login/signup routes and root path - redirect to dashboard if already authenticated
     if (publicOnlyRoutes.some(route => path === route) && session) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+      // Use absolute URLs with the correct domain
+      const dashboardUrl = new URL('/dashboard', baseUrl);
+      return NextResponse.redirect(dashboardUrl);
     }
     
     return res;
