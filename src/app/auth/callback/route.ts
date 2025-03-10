@@ -1,7 +1,6 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { getBaseUrl } from '@/lib/env';
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -15,7 +14,7 @@ export async function GET(request: Request) {
   }
 
   // Get the base URL for the current environment
-  const baseUrl = getBaseUrl();
+  const baseUrl = new URL(request.url).origin;
   
   // Ensure redirectTo starts with a slash
   const normalizedRedirectTo = redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`;
