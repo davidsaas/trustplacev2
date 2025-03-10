@@ -9,12 +9,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, AlertCircle, Star, MapPin, Bus, Moon, Shield, Users, Home, Map, MessageCircle, Star as StarIcon, Info, Heart, PlayCircle } from "lucide-react";
+import { ArrowLeft, AlertCircle, Star, MapPin, Bus, Moon, Users, Home, Map, MessageCircle, Star as StarIcon, Info, Heart, PlayCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
-import SafetyMetricsCard from '@/components/safety-metrics/SafetyMetricsCard';
-import { SafetyMetrics as DistrictSafetyMetrics } from '@/lib/safety-insights/types';
 // Prevent map blinking with persistent instance across renders
 const MapView = dynamic(() => import("@/components/map-view"), { 
   ssr: false,
@@ -27,52 +25,10 @@ import SafetyInsights from "@/components/SafetyInsights";
 import ReviewTakeaways from "@/components/ReviewTakeaways";
 import LocationVideos from "@/components/LocationVideos";
 
-// OSM-based safety metrics calculation
-interface SafetyMetrics {
-  nightSafety: number;
-  publicTransport: number;
-  walkability: number;
-  overallSafety: number;
-}
-
-// Calculate safety metrics based on OSM data and location
-const calculateOsmSafetyMetrics = async (lat: number, lng: number): Promise<SafetyMetrics> => {
-  try {
-    // Fetch OSM data for the location
-    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
-    const osmData = await response.json();
-    
-    // Extract neighborhood/area information
-    const area = osmData.address?.suburb || 
-                 osmData.address?.neighbourhood || 
-                 osmData.address?.city_district || 
-                 osmData.address?.county || 
-                 'Unknown';
-
-    // TODO: Implement real safety metrics calculation using Overpass API
-    // For now, return default values
-    return {
-      nightSafety: 0,
-      publicTransport: 0,
-      walkability: 0,
-      overallSafety: 0
-    };
-  } catch (error) {
-    console.error('Error calculating OSM safety metrics:', error);
-    return {
-      nightSafety: 0,
-      publicTransport: 0,
-      walkability: 0,
-      overallSafety: 0
-    };
-  }
-};
-
 
 // Navigation sections for the sticky menu
 const navigationSections = [
   { id: "overview", label: "Overview", icon: <Home className="h-4 w-4" /> },
-  { id: "safety-metrics", label: "Safety Metrics", icon: <Shield className="h-4 w-4" /> },
   { id: "community", label: "Safety Insights", icon: <Users className="h-4 w-4" /> },
   { id: "reviews", label: "Reviews", icon: <MessageCircle className="h-4 w-4" /> },
   { id: "videos", label: "Location Videos", icon: <PlayCircle className="h-4 w-4" /> },
@@ -87,8 +43,6 @@ function ReportContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [listing, setListing] = useState<ApifyListing | null>(null);
-  const [safetyScore, setSafetyScore] = useState<number>(0);
-  const [safetyMetrics, setSafetyMetrics] = useState<SafetyMetrics | null>(null);
   const [safetyReviews, setSafetyReviews] = useState<Array<{
     id: string;
     text: string;
@@ -104,13 +58,11 @@ function ReportContent() {
   const [activeSection, setActiveSection] = useState("overview");
   const [showSafetyInsights, setShowSafetyInsights] = useState(false);
   const [showReviews, setShowReviews] = useState(false);
-  const [districtSafetyMetrics, setDistrictSafetyMetrics] = useState<DistrictSafetyMetrics | null>(null);
 
   // Refs for each section
   const sectionRefs = {
     overview: useRef<HTMLDivElement>(null),
     location: useRef<HTMLDivElement>(null),
-    "safety-metrics": useRef<HTMLDivElement>(null),
     community: useRef<HTMLDivElement>(null),
     reviews: useRef<HTMLDivElement>(null),
     videos: useRef<HTMLDivElement>(null),
@@ -130,7 +82,7 @@ function ReportContent() {
       <MapView
         mainLocation={{
           location: `${listing.location.city}, ${listing.location.state}`,
-          safetyScore: safetyMetrics?.overallSafety || safetyScore,
+          safetyScore: calculateSafetyScore(listing),
           coordinates: [listing.location.coordinates.lng, listing.location.coordinates.lat],
           url: listing.url
         }}
@@ -143,7 +95,7 @@ function ReportContent() {
         onLocationClick={navigateToListing}
       />
     );
-  }, [listing, safetyMetrics, safetyScore, alternatives]);
+  }, [listing, alternatives]);
 
   // Memoize the desktop map component to prevent flickering on scroll
   const desktopMapComponent = useMemo(() => {
@@ -152,7 +104,7 @@ function ReportContent() {
       <MapView
         mainLocation={{
           location: `${listing.location.city}, ${listing.location.state}`,
-          safetyScore: safetyMetrics?.overallSafety || safetyScore,
+          safetyScore: calculateSafetyScore(listing),
           coordinates: [listing.location.coordinates.lng, listing.location.coordinates.lat],
           url: listing.url
         }}
@@ -165,7 +117,7 @@ function ReportContent() {
         onLocationClick={navigateToListing}
       />
     );
-  }, [listing, safetyMetrics, safetyScore, alternatives]);
+  }, [listing, alternatives]);
 
   useEffect(() => {
     const initializeReport = async () => {
@@ -221,8 +173,6 @@ function ReportContent() {
           fullPriceObj: matchingListing.price
         });
 
-        // Calculate safety metrics
-        const score = calculateSafetyScore(matchingListing);
         
         // Get all reviews and add random avatar images
         const reviews = (matchingListing.reviews?.details?.reviews || []).map(review => ({
@@ -231,25 +181,14 @@ function ReportContent() {
           date: review.createdAt,
           rating: review.rating,
           author: review.author.firstName,
-          authorImage: `https://i.pravatar.cc/150?u=${review.id}` // Generate unique avatar based on review ID
         }));
         
         const saferOptions = findSaferAlternatives(matchingListing, listings);
-        
-        // Calculate OSM-based safety metrics
-        const metrics = await calculateOsmSafetyMetrics(
-          matchingListing.location.coordinates.lat,
-          matchingListing.location.coordinates.lng
-        );
-
-        console.log('Safety score:', score);
-        console.log('OSM safety metrics:', metrics);
+      
         console.log('Safety reviews:', JSON.stringify(reviews, null, 2));
         console.log('Safer alternatives:', JSON.stringify(saferOptions, null, 2));
 
         setListing(matchingListing);
-        setSafetyScore(score);
-        setSafetyMetrics(metrics);
         setSafetyReviews(reviews);
         setAlternatives(saferOptions);
 
@@ -271,25 +210,6 @@ function ReportContent() {
     initializeReport();
   }, [url, router]);
 
-  useEffect(() => {
-    const fetchDistrictSafetyMetrics = async (district: string) => {
-      try {
-        const { data, error } = await supabase
-          .rpc('get_district_safety_metrics', { district_name: district });
-        
-        if (error) throw error;
-        if (data) setDistrictSafetyMetrics(data);
-      } catch (error) {
-        console.error('Error fetching district safety metrics:', error);
-      }
-    };
-
-    if (listing?.location?.city) {
-      // Use the city as the district
-      const district = listing.location.city;
-      if (district) fetchDistrictSafetyMetrics(district);
-    }
-  }, [listing]);
 
   // Intersection Observer to detect which section is in view
   useEffect(() => {
@@ -409,7 +329,7 @@ function ReportContent() {
             user_id: session.user.id,
             listing_url: url || '',
             listing_title: listing.title,
-            safety_score: safetyScore,
+            safety_score: calculateSafetyScore(listing),
           });
           
         if (error) throw error;
@@ -428,20 +348,6 @@ function ReportContent() {
     } finally {
       setSaving(false);
     }
-  };
-
-  // Get color for safety score with more consumer-friendly colors
-  const getSafetyScoreColor = (score: number) => {
-    if (score >= 80) return "bg-emerald-100 text-emerald-800 border-emerald-200";
-    if (score >= 60) return "bg-amber-100 text-amber-800 border-amber-200";
-    return "bg-rose-100 text-rose-800 border-rose-200";
-  };
-
-  // Get background gradient based on safety score
-  const getSafetyGradient = (score: number) => {
-    if (score >= 80) return "bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-100";
-    if (score >= 60) return "bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-100";
-    return "bg-gradient-to-r from-rose-50 to-red-50 border-rose-100";
   };
 
   const scrollToSection = (sectionId: string) => {
@@ -553,12 +459,6 @@ function ReportContent() {
                       className="w-full object-cover"
                     />
                   </div>
-                  <div className="absolute top-4 right-4">
-                    <Badge className={`${getSafetyScoreColor(safetyMetrics?.overallSafety || safetyScore)} px-3 py-1.5 text-sm font-medium shadow-sm`}>
-                      <Shield className="h-4 w-4 mr-1" />
-                      Safety Score: {safetyMetrics?.overallSafety || safetyScore}
-                    </Badge>
-                  </div>
                 </div>
                 <CardContent className="p-6">
                   <div className="flex flex-col">
@@ -589,33 +489,6 @@ function ReportContent() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
-
-            {/* Safety Metrics Section */}
-            <div id="safety-metrics" ref={sectionRefs["safety-metrics"]} className="space-y-6">
-              <h2 className="text-2xl font-bold">Safety Metrics</h2>
-              {districtSafetyMetrics ? (
-                <SafetyMetricsCard metrics={districtSafetyMetrics} />
-              ) : (
-                <Card className="w-full bg-white shadow-lg rounded-lg overflow-hidden">
-                  <CardHeader className="space-y-1 p-6">
-                    <CardTitle className="text-2xl font-bold text-gray-900">Safety Metrics</CardTitle>
-                    <CardDescription className="text-gray-500">
-                      Loading safety metrics...
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-6 pt-0 space-y-4">
-                    <div className="space-y-4">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <div key={i} className="space-y-2">
-                          <Skeleton className="h-6 w-3/4" />
-                          <Skeleton className="h-4 w-1/2" />
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
             </div>
 
             {/* Community Opinions Section */}
@@ -726,9 +599,6 @@ function ReportContent() {
                           <div className="p-4 sm:w-2/3">
                             <div className="flex justify-between items-start mb-2">
                               <h4 className="font-medium text-gray-900 line-clamp-1">{alt.title}</h4>
-                              <Badge className={`${getSafetyScoreColor(calculateSafetyScore(alt))} ml-2 whitespace-nowrap`}>
-                                Score: {calculateSafetyScore(alt)}
-                              </Badge>
                             </div>
                             <p className="text-sm text-gray-600 flex items-center gap-1 mb-2">
                               <MapPin className="h-3 w-3" />

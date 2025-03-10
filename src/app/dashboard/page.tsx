@@ -157,56 +157,6 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="glass p-6 rounded-xl hover:shadow-md transition-all">
-            <div className="bg-safety-red/20 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-              <Shield className="h-6 w-6 text-safety-red" />
-            </div>
-            <h3 className="text-xl font-semibold text-brand mb-2">Safety Scores</h3>
-            <p className="text-foreground">
-              Get detailed safety metrics based on crime data, neighborhood reviews, and local insights.
-            </p>
-          </div>
-          
-          <div className="glass p-6 rounded-xl hover:shadow-md transition-all">
-            <div className="bg-safety-yellow/20 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-              <MapPin className="h-6 w-6 text-safety-yellow" />
-            </div>
-            <h3 className="text-xl font-semibold text-brand mb-2">Neighborhood Analysis</h3>
-            <p className="text-foreground">
-              Understand the area with walkability scores, public transport options, and nearby amenities.
-            </p>
-          </div>
-          
-          <div className="glass p-6 rounded-xl hover:shadow-md transition-all">
-            <div className="bg-safety-green/20 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-              <Star className="h-6 w-6 text-safety-green" />
-            </div>
-            <h3 className="text-xl font-semibold text-brand mb-2">Verified Reviews</h3>
-            <p className="text-foreground">
-              Read safety-focused reviews from real travelers who have stayed at the property.
-            </p>
-          </div>
-        </div>
-
-        <div className="text-center space-y-4">
-          <Button 
-            variant="outline" 
-            onClick={() => router.push('/saved')}
-            className="bg-background/50 hover:bg-accent hover:text-accent-foreground transition-all mr-2"
-          >
-            View Saved Reports
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            onClick={handleSignOut}
-            className="bg-background/50 hover:bg-safety-red/10 hover:text-safety-red transition-all"
-          >
-            Sign Out
-          </Button>
-        </div>
       </main>
     </div>
   );
