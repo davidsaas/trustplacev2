@@ -67,7 +67,17 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Left side: Logo */}
           <div className="flex-shrink-0">
-            <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-2">
+            <Link 
+              href={user ? "/dashboard" : "/"} 
+              className="flex items-center gap-2"
+              onClick={(e) => {
+                // Ensure authenticated users always go to dashboard
+                if (user) {
+                  e.preventDefault();
+                  router.push("/dashboard");
+                }
+              }}
+            >
               <div className="relative h-8 w-32">
                 <Image 
                   src="/images/pinkLogo.svg" 

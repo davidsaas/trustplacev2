@@ -99,6 +99,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(session.user);
           const details = await fetchUserDetails(session.user.id);
           setUserDetails(details);
+          
+          // Check if we're on a page that should redirect to dashboard
+          const path = window.location.pathname;
+          const publicOnlyRoutes = ['/login', '/signup', '/'];
+          
+          if (publicOnlyRoutes.includes(path)) {
+            router.push('/dashboard');
+          }
         }
       } catch (error) {
         console.error("Error during auth initialization:", error);
@@ -116,6 +124,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(session.user);
           const details = await fetchUserDetails(session.user.id);
           setUserDetails(details);
+          
+          // Check if we're on a page that should redirect to dashboard
+          const path = window.location.pathname;
+          const publicOnlyRoutes = ['/login', '/signup', '/'];
+          
+          if (publicOnlyRoutes.includes(path)) {
+            router.push('/dashboard');
+          }
         } else {
           setUser(null);
           setUserDetails(null);
@@ -126,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [router]);
 
   // Sign in with email/password
   const signIn = async (email: string, password: string, redirectTo?: string) => {

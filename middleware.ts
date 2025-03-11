@@ -62,12 +62,17 @@ export async function middleware(request: NextRequest) {
       data: { session },
     } = await supabase.auth.getSession();
     
+    // Add logging for debugging
+    console.log('Middleware path:', request.nextUrl.pathname);
+    console.log('Session exists:', !!session);
+    
     const path = request.nextUrl.pathname;
     const baseUrl = getBaseUrl(request);
     
     // Protect private routes - redirect to login if not authenticated
     if (protectedRoutes.some(route => path.startsWith(route))) {
       if (!session) {
+        console.log('Redirecting to login: No session for protected route');
         // Use absolute URLs with the correct domain
         const loginUrl = new URL('/login', baseUrl);
         loginUrl.searchParams.set('redirectTo', path);
@@ -77,6 +82,7 @@ export async function middleware(request: NextRequest) {
     
     // Handle login/signup routes and root path - redirect to dashboard if already authenticated
     if (publicOnlyRoutes.some(route => path === route) && session) {
+      console.log('Redirecting to dashboard: User is authenticated on public-only route');
       // Use absolute URLs with the correct domain
       const dashboardUrl = new URL('/dashboard', baseUrl);
       return NextResponse.redirect(dashboardUrl);

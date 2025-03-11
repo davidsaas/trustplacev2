@@ -87,7 +87,7 @@ Travelers are often concerned about the safety of their accommodations when book
 5. **Report Management**
    - Save reports for future reference
    - Compare multiple properties
-   - View saved report history
+   - View saved report history<>
 
 6. **Additional Safety Analysis**
    - Comprehensive safety metrics for the neighborhood
