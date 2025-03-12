@@ -41,7 +41,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Fetch user details from our users table
   const fetchUserDetails = async (userId: string) => {
     try {
-      // Try to get existing user details
       let { data, error } = await supabase
         .from("users")
         .select("*")
@@ -50,11 +49,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         if (error.code === 'PGRST116') { // No rows returned
-          // Try to create the user record
           const { data: authUser } = await supabase.auth.getUser();
           if (!authUser?.user?.email) throw new Error("No authenticated user found");
 
-          // Retry the insert with the current user's auth context
           ({ data, error } = await supabase
             .from("users")
             .insert({
@@ -64,10 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .select()
             .single());
 
-          if (error) {
-            console.error("Failed to create user record:", error);
-            return null;
-          }
+          if (error) throw error;
         } else {
           throw error;
         }
@@ -80,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Refresh user details (useful after updating premium status)
+  // Refresh user details
   const refreshUserDetails = async () => {
     if (user) {
       const details = await fetchUserDetails(user.id);
@@ -92,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initialize = async () => {
       try {
-        // Get initial session - middleware handles redirects
+        // Get initial session
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
@@ -100,12 +94,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const details = await fetchUserDetails(session.user.id);
           setUserDetails(details);
           
-          // Check if we're on a page that should redirect to dashboard
+          // Check if we're on a public-only route
           const path = window.location.pathname;
           const publicOnlyRoutes = ['/login', '/signup', '/'];
           
           if (publicOnlyRoutes.includes(path)) {
-            router.push('/dashboard');
+            router.replace('/dashboard');
+          }
+        } else {
+          // If no session, check if we're on a protected route
+          const path = window.location.pathname;
+          const protectedRoutes = ['/dashboard', '/report', '/saved', '/premium'];
+          
+          if (protectedRoutes.some(route => path.startsWith(route))) {
+            router.replace('/login');
           }
         }
       } catch (error) {
@@ -125,16 +127,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const details = await fetchUserDetails(session.user.id);
           setUserDetails(details);
           
-          // Check if we're on a page that should redirect to dashboard
-          const path = window.location.pathname;
-          const publicOnlyRoutes = ['/login', '/signup', '/'];
-          
-          if (publicOnlyRoutes.includes(path)) {
-            router.push('/dashboard');
+          // Handle auth events
+          switch (event) {
+            case 'SIGNED_IN':
+              router.replace('/dashboard');
+              break;
+            case 'SIGNED_OUT':
+              router.replace('/');
+              break;
           }
         } else {
           setUser(null);
           setUserDetails(null);
+          
+          // If logged out, redirect to home if on protected route
+          const path = window.location.pathname;
+          const protectedRoutes = ['/dashboard', '/report', '/saved', '/premium'];
+          
+          if (protectedRoutes.some(route => path.startsWith(route))) {
+            router.replace('/');
+          }
         }
       }
     );

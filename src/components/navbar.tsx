@@ -40,6 +40,11 @@ export function Navbar() {
   // Handle search
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    
     if (searchQuery.trim()) {
       // Check if it's an Airbnb URL
       if (searchQuery.includes("airbnb.com")) {
@@ -70,13 +75,6 @@ export function Navbar() {
             <Link 
               href={user ? "/dashboard" : "/"} 
               className="flex items-center gap-2"
-              onClick={(e) => {
-                // Ensure authenticated users always go to dashboard
-                if (user) {
-                  e.preventDefault();
-                  router.push("/dashboard");
-                }
-              }}
             >
               <div className="relative h-8 w-32">
                 <Image 
@@ -89,32 +87,34 @@ export function Navbar() {
             </Link>
           </div>
 
-          {/* Center: Search */}
-          <div className="hidden md:block flex-1 mx-4 max-w-xl px-4">
-            <form 
-              onSubmit={handleSearch} 
-              className="relative w-full"
-            >
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search locations or paste Airbnb URL"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full rounded-full border border-gray-200 focus:border-brand focus:outline-none focus:ring-2 focus:ring-ring focus:ring-opacity-50"
-                />
-              </div>
-              <button 
-                type="submit" 
-                className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full h-8 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium transition-colors"
+          {/* Center: Search - Only show if user is authenticated */}
+          {user && (
+            <div className="hidden md:block flex-1 mx-4 max-w-xl px-4">
+              <form 
+                onSubmit={handleSearch} 
+                className="relative w-full"
               >
-                Search
-              </button>
-            </form>
-          </div>
+                <div className="relative w-full">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search locations or paste Airbnb URL"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 pr-4 py-2 w-full rounded-full border border-gray-200 focus:border-brand focus:outline-none focus:ring-2 focus:ring-ring focus:ring-opacity-50"
+                  />
+                </div>
+                <button 
+                  type="submit" 
+                  className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full h-8 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium transition-colors"
+                >
+                  Search
+                </button>
+              </form>
+            </div>
+          )}
 
-          {/* Right side: Upgrade, Saved, Profile */}
+          {/* Right side: Auth/User Menu */}
           <div className="hidden md:flex items-center gap-4">
             {user ? (
               <>

@@ -6,17 +6,17 @@ import { useAuth } from "./providers/auth-provider";
 
 export function NavWrapper() {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   
-  // Don't show navbar on public-only routes and landing page when not authenticated
-  const publicOnlyRoutes = ["/login", "/signup"];
-  const isPublicOnlyRoute = publicOnlyRoutes.includes(pathname);
-  const isLandingPage = pathname === "/";
+  // Don't show navbar while auth state is loading
+  if (loading) return null;
   
-  // Hide navbar on public-only routes or on landing page when not authenticated
-  const hideNavbar = isPublicOnlyRoute || (isLandingPage && !user);
+  // Don't show navbar on auth routes
+  const authRoutes = ["/login", "/signup"];
+  if (authRoutes.includes(pathname)) return null;
   
-  if (hideNavbar) return null;
+  // Don't show navbar on landing page for non-authenticated users
+  if (pathname === "/" && !user) return null;
   
   return <Navbar />;
 } 
