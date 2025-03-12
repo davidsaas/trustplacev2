@@ -36,10 +36,8 @@ const navigationSections = [
 ];
 
 // Component that uses useSearchParams
-function ReportContent() {
-  const searchParams = useSearchParams();
+function ReportContent({ url, type }) {
   const router = useRouter();
-  const url = searchParams?.get("url");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [listing, setListing] = useState<ApifyListing | null>(null);
@@ -122,93 +120,93 @@ function ReportContent() {
   useEffect(() => {
     const initializeReport = async () => {
       if (!url) {
-        setError("No Airbnb URL provided");
+        setError("No URL provided");
         setIsLoading(false);
         return;
       }
 
       try {
-        const { success, data: listings, error } = await fetchLAListings();
-        
-        if (!success || !listings) {
-          throw new Error(error || 'Failed to fetch listings');
-        }
-
-        // Log the first listing to see its structure
-        console.log('First listing structure:', JSON.stringify(listings[0], null, 2));
-
-        // Normalize the URL we're looking for
-        const normalizedSearchUrl = normalizeAirbnbUrl(url);
-        console.log('Searching for listing with URL:', normalizedSearchUrl);
-
-        // Find the listing that matches the normalized URL
-        const matchingListing = listings.find(l => 
-          normalizeAirbnbUrl(l.url) === normalizedSearchUrl
-        );
-        
-        if (!matchingListing) {
-          console.log('Available listings:', listings.map(l => ({ url: l.url, normalized: normalizeAirbnbUrl(l.url) })));
-          throw new Error('Listing not found');
-        }
-
-        console.log('Found matching listing:', JSON.stringify(matchingListing, null, 2));
-
-        // Log coordinates for map debugging
-        console.log('Map coordinates:', {
-          lat: matchingListing.location.coordinates.lat,
-          lng: matchingListing.location.coordinates.lng,
-          valid: typeof matchingListing.location.coordinates.lat === 'number' 
-                && typeof matchingListing.location.coordinates.lng === 'number'
-                && !isNaN(matchingListing.location.coordinates.lat)
-                && !isNaN(matchingListing.location.coordinates.lng)
-        });
-        
-        // Log photo structure if present
-        console.log('Photos structure:', matchingListing.photos);
-        
-        // Log price data for debugging
-        console.log('Price data:', {
-          hasPrice: !!matchingListing.price?.amount,
-          priceAmount: matchingListing.price?.amount,
-          fullPriceObj: matchingListing.price
-        });
-
-        
-        // Get all reviews and add random avatar images
-        const reviews = (matchingListing.reviews?.details?.reviews || []).map(review => ({
-          id: review.id,
-          text: review.comments,
-          date: review.createdAt,
-          rating: review.rating,
-          author: review.author.firstName,
-        }));
-        
-        const saferOptions = findSaferAlternatives(matchingListing, listings);
-      
-        console.log('Safety reviews:', JSON.stringify(reviews, null, 2));
-        console.log('Safer alternatives:', JSON.stringify(saferOptions, null, 2));
-
-        setListing(matchingListing);
-        setSafetyReviews(reviews);
-        setAlternatives(saferOptions);
-
-        // Enable safety insights if we have coordinates
-        if (matchingListing.location.coordinates.lat && matchingListing.location.coordinates.lng) {
-          console.log('Enabling safety insights with coordinates:', matchingListing.location.coordinates);
+        if (type === 'booking') {
+          // Handle Booking.com listings
+          const response = await fetch(`/api/report?url=${encodeURIComponent(url)}&type=booking`);
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to fetch Booking.com data');
+          }
+          
+          const bookingData = await response.json();
+          console.log('Booking.com data:', bookingData);
+          
+          setListing({
+            ...bookingData,
+            id: bookingData.id || Date.now().toString(),
+            title: bookingData.name,
+            photos: [{ large: bookingData.image }],
+            location: {
+              city: bookingData.city,
+              state: 'CA', // Default to CA since we're focusing on LA
+              coordinates: {
+                lat: parseFloat(bookingData.location.lat),
+                lng: parseFloat(bookingData.location.lng)
+              }
+            },
+            price: {
+              amount: bookingData.price
+            },
+            reviews: {
+              details: {
+                reviews: [] // We'll need to implement this when we have booking.com reviews
+              }
+            }
+          });
+          
+          setSafetyReviews([]); // Initialize empty for now
+          setAlternatives([]); // Initialize empty for now
           setShowSafetyInsights(true);
+          
         } else {
-          console.log('Missing coordinates:', matchingListing.location);
+          // Handle Airbnb listings (existing logic)
+          const { success, data: listings, error } = await fetchLAListings();
+          
+          if (!success || !listings) {
+            throw new Error(error || 'Failed to fetch listings');
+          }
+
+          const normalizedSearchUrl = normalizeAirbnbUrl(url);
+          const matchingListing = listings.find(l => 
+            normalizeAirbnbUrl(l.url) === normalizedSearchUrl
+          );
+          
+          if (!matchingListing) {
+            throw new Error('Listing not found');
+          }
+
+          const reviews = (matchingListing.reviews?.details?.reviews || []).map(review => ({
+            id: review.id,
+            text: review.comments,
+            date: review.createdAt,
+            rating: review.rating,
+            author: review.author.firstName,
+          }));
+          
+          const saferOptions = findSaferAlternatives(matchingListing, listings);
+
+          setListing(matchingListing);
+          setSafetyReviews(reviews);
+          setAlternatives(saferOptions);
+          setShowSafetyInsights(true);
         }
 
         setIsLoading(false);
       } catch (err) {
         console.error('Error processing listing:', err);
         setError(err instanceof Error ? err.message : 'An error occurred');
+        setIsLoading(false);
       }
     };
 
     initializeReport();
-  }, [url, router]);
+  }, [url, type]);
 
 
   // Intersection Observer to detect which section is in view
@@ -644,9 +642,15 @@ function ReportFallback() {
 }
 
 export default function ReportPage() {
-  return (
-    <Suspense fallback={<ReportFallback />}>
-      <ReportContent />
-    </Suspense>
-  );
+  const searchParams = useSearchParams();
+  const url = searchParams.get('url');
+  const type = searchParams.get('type') || 'airbnb'; // default to airbnb for backward compatibility
+
+  if (!url) {
+    return <div className="flex justify-center items-center min-h-screen">
+      <div className="text-red-500">No URL provided</div>
+    </div>;
+  }
+
+  return <ReportContent url={url} type={type} />;
 }

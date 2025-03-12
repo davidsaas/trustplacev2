@@ -13,6 +13,7 @@ export interface ApifyListing {
   id: string | number;
   title: string;
   url: string;
+  type?: 'airbnb' | 'booking';
   location: {
     city: string;
     state: string;
@@ -92,7 +93,7 @@ export function calculateSafetyScore(listing: ApifyListing): number {
   score += reviewCountScore;
 
   // Superhost status (20 points)
-  if (listing.host.isSuperhost) {
+  if (listing.type === 'airbnb' && listing.host?.isSuperhost) {
     score += 20;
   }
 
@@ -108,7 +109,8 @@ export function calculateSafetyScore(listing: ApifyListing): number {
   ];
 
   const amenityScore = safetyAmenities.reduce((sum, amenity) => {
-    return sum + (listing.amenities.some(a => 
+    const listingAmenities = listing.amenities || [];
+    return sum + (listingAmenities.some(a => 
       a.toLowerCase().includes(amenity)
     ) ? (20 / safetyAmenities.length) : 0);
   }, 0);

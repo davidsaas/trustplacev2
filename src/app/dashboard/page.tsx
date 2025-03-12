@@ -19,6 +19,21 @@ export default function Dashboard() {
   const router = useRouter();
   const { isPremium, signOut } = useAuth();
 
+  const validateUrl = (url: string) => {
+    const airbnbPattern = /^https?:\/\/(www\.)?airbnb\.[a-z.]+\/rooms\/\d+/i;
+    const bookingPattern = /^https?:\/\/(www\.)?booking\.com\/hotel\//i;
+    
+    if (airbnbPattern.test(url)) {
+      return { isValid: true, type: 'airbnb' };
+    }
+    
+    if (bookingPattern.test(url)) {
+      return { isValid: true, type: 'booking' };
+    }
+    
+    return { isValid: false, type: null };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -27,34 +42,41 @@ export default function Dashboard() {
     try {
       // Basic URL validation
       if (!url) {
-        throw new Error("Please enter an Airbnb URL");
+        throw new Error("Please enter a listing URL");
       }
 
-      if (!url.includes("airbnb.com/rooms/")) {
-        throw new Error("Please enter a valid Airbnb listing URL");
+      const validation = validateUrl(url);
+      if (!validation.isValid) {
+        throw new Error("Please enter a valid Airbnb or Booking.com listing URL");
       }
 
-      // Normalize the input URL
-      const normalizedUrl = normalizeAirbnbUrl(url);
+      if (validation.type === 'airbnb') {
+        // Normalize the input URL for Airbnb
+        const normalizedUrl = normalizeAirbnbUrl(url);
 
-      // Fetch LA listings and check if the URL exists
-      const { success, data: listings, error: fetchError } = await fetchLAListings();
-      
-      if (!success || !listings) {
-        throw new Error(fetchError || "Failed to fetch listings");
+        // Fetch LA listings and check if the URL exists
+        const { success, data: listings, error: fetchError } = await fetchLAListings();
+        
+        if (!success || !listings) {
+          throw new Error(fetchError || "Failed to fetch listings");
+        }
+
+        const matchingListing = listings.find((listing: ApifyListing) => 
+          normalizeAirbnbUrl(listing.url) === normalizedUrl
+        );
+        
+        if (!matchingListing) {
+          throw new Error("This tool only supports listings in Los Angeles. The provided listing was not found in our LA dataset.");
+        }
+
+        // If we get here, the listing exists in our LA dataset
+        const encodedUrl = encodeURIComponent(normalizedUrl);
+        router.push(`/report?url=${encodedUrl}&type=airbnb`);
+      } else {
+        // Handle Booking.com URL
+        const encodedUrl = encodeURIComponent(url);
+        router.push(`/report?url=${encodedUrl}&type=booking`);
       }
-
-      const matchingListing = listings.find((listing: ApifyListing) => 
-        normalizeAirbnbUrl(listing.url) === normalizedUrl
-      );
-      
-      if (!matchingListing) {
-        throw new Error("This tool only supports listings in Los Angeles. The provided listing was not found in our LA dataset.");
-      }
-
-      // If we get here, the listing exists in our LA dataset
-      const encodedUrl = encodeURIComponent(normalizedUrl);
-      router.push(`/report?url=${encodedUrl}`);
     } catch (error: any) {
       setError(error.message || "An error occurred while processing your request");
     } finally {
@@ -99,11 +121,11 @@ export default function Dashboard() {
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="url">Airbnb Listing URL</Label>
+                <Label htmlFor="url">Listing URL</Label>
                 <Input
                   id="url"
                   type="text"
-                  placeholder="https://www.airbnb.com/rooms/..."
+                  placeholder="Enter Airbnb or Booking.com URL..."
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   required
@@ -134,7 +156,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <ol className="list-decimal pl-5 space-y-2 text-foreground">
-                <li>Paste an Airbnb listing URL from Los Angeles</li>
+                <li>Paste an Airbnb or Booking.com listing URL from Los Angeles</li>
                 <li>Our system analyzes the listing's location and reviews</li>
                 <li>We generate safety metrics and a safety score</li>
                 <li>View detailed safety information and safer alternatives</li>
