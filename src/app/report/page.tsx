@@ -432,19 +432,21 @@ function ReportContent() {
       </div>
 
       {/* Horizontal Sticky Navigation Menu - Full Width */}
-      <div className="sticky top-0 z-10 bg-white border-y border-blue-100 shadow-sm mb-6 py-2 w-full">
-        <div className="container mx-auto px-4">
+      <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-gray-100 shadow-sm mb-6">
+        <div className="container mx-auto">
           <div className="overflow-x-auto hide-scrollbar">
-            <nav className="flex whitespace-nowrap">
+            <nav className="flex items-center h-16 gap-1">
               {navigationSections.map((section) => (
                 <button
                   key={section.id}
                   onClick={() => scrollToSection(section.id)}
-                  className={`flex items-center gap-1.5 px-4 py-2.5 text-sm transition-all whitespace-nowrap mx-1 ${
-                    activeSection === section.id
-                      ? " text-gray-700 border-b-3 border-gray-700"
-                      : "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
-                  }`}
+                  className={`
+                    flex items-center gap-2 px-4 h-full text-sm font-medium transition-all
+                    ${activeSection === section.id
+                      ? "text-gray-900 border-b-2 border-gray-900"
+                      : "text-gray-600 hover:text-gray-900"
+                    }
+                  `}
                 >
                   {section.icon}
                   {section.label}
@@ -477,10 +479,10 @@ function ReportContent() {
                       alt={listing.title}
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-                      <h2 className="text-2xl font-bold mb-2">{listing.title}</h2>
-                      <p className="flex items-center gap-1 text-white/90">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-8">
+                      <h2 className="text-2xl font-semibold text-white mb-3">{listing.title}</h2>
+                      <p className="flex items-center gap-2 text-white/90 text-sm">
                         <MapPin className="h-4 w-4" />
                         {listing.location.city}, {listing.location.state}
                       </p>
@@ -488,11 +490,11 @@ function ReportContent() {
                   </div>
                 </div>
                 <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center justify-between mb-8">
                     <div>
-                      <p className="text-xl font-semibold text-blue-700">
+                      <p className="text-2xl font-semibold text-gray-900">
                         {listing.price?.amount ? `$${listing.price.amount}` : 'Price not available'} 
-                        <span className="text-sm font-normal text-gray-600 ml-1">per night</span>
+                        <span className="text-sm font-normal text-gray-500 ml-1">per night</span>
                       </p>
                     </div>
                     <Button 
@@ -500,49 +502,61 @@ function ReportContent() {
                       disabled={saving}
                       variant="ghost"
                       size="icon"
-                      className={`flex items-center justify-center w-10 h-10 rounded-full transition-all hover:bg-gray-100 ${saving ? 'opacity-70' : ''} ${isSaved ? 'hover:bg-red-50' : 'hover:bg-gray-50'}`}
+                      className={`flex items-center justify-center w-10 h-10 rounded-full transition-all
+                        ${saving ? 'opacity-70' : ''} 
+                        ${isSaved ? 'hover:bg-red-50' : 'hover:bg-gray-100'}`}
                       aria-label={isSaved ? "Remove from saved" : "Save report"}
                     >
                       <Heart 
-                        className={`h-6 w-6 transition-all ${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-500 hover:text-red-400'} 
+                        className={`h-5 w-5 transition-all 
+                          ${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-400'} 
                           ${heartAnimation ? 'animate-heartbeat' : ''}`} 
                       />
                     </Button>
                   </div>
                   
-                  <div className="flex items-center gap-8 p-6 bg-gray-50 rounded-xl">
-                    <div className="w-24 h-24">
-                      <CircularProgressbar
-                        value={overallSafetyScore}
-                        text={`${overallSafetyScore}`}
-                        styles={buildStyles({
-                          textSize: '24px',
-                          pathColor: overallSafetyScore >= 80 ? '#22c55e' : 
-                                    overallSafetyScore >= 60 ? '#3b82f6' : 
-                                    overallSafetyScore >= 40 ? '#eab308' : '#ef4444',
-                          textColor: '#1f2937',
-                          trailColor: '#e5e7eb',
-                        })}
-                      />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">Safety Score</h3>
-                      <p className="text-sm text-gray-600">
-                        Based on official crime data, local insights, and community feedback
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Badge variant="outline" className={
-                          overallSafetyScore >= 80 ? 'bg-green-50 text-green-700 border-green-200' :
-                          overallSafetyScore >= 60 ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                          overallSafetyScore >= 40 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-                          'bg-red-50 text-red-700 border-red-200'
-                        }>
-                          {overallSafetyScore >= 80 ? 'Very Safe' :
-                           overallSafetyScore >= 60 ? 'Safe' :
-                           overallSafetyScore >= 40 ? 'Moderate' : 'Exercise Caution'}
-                        </Badge>
+                  <div className="flex items-stretch gap-6 p-6 bg-gray-50 rounded-2xl">
+                    {overallSafetyScore > 0 ? (
+                      <>
+                        <div className="w-28 h-28">
+                          <CircularProgressbar
+                            value={overallSafetyScore}
+                            text={`${overallSafetyScore}`}
+                            styles={buildStyles({
+                              textSize: '28px',
+                              pathColor: overallSafetyScore >= 80 ? '#22c55e' : 
+                                        overallSafetyScore >= 60 ? '#3b82f6' : 
+                                        overallSafetyScore >= 40 ? '#eab308' : '#ef4444',
+                              textColor: '#1f2937',
+                              trailColor: '#e5e7eb',
+                              pathTransitionDuration: 0.5,
+                            })}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">Safety Score</h3>
+                          <p className="text-sm text-gray-600 mb-3">
+                            Based on official crime data, local insights, and community feedback
+                          </p>
+                          <Badge variant="outline" className={
+                            overallSafetyScore >= 80 ? 'bg-green-50 text-green-700 border-green-200' :
+                            overallSafetyScore >= 60 ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                            overallSafetyScore >= 40 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                            'bg-red-50 text-red-700 border-red-200'
+                          }>
+                            {overallSafetyScore >= 80 ? 'Very Safe' :
+                             overallSafetyScore >= 60 ? 'Safe' :
+                             overallSafetyScore >= 40 ? 'Moderate' : 'Exercise Caution'}
+                          </Badge>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="w-full text-center py-4">
+                        <Shield className="h-8 w-8 text-gray-400 mx-auto mb-3" />
+                        <p className="text-gray-600">Safety score not yet available for this location.</p>
+                        <p className="text-sm text-gray-500 mt-1">We're gathering data to provide accurate safety insights.</p>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -585,14 +599,14 @@ function ReportContent() {
 
             {/* Reviews Section */}
             <div id="reviews" ref={sectionRefs.reviews}>
-              <Card className="rounded-xl border-0 shadow-lg">
-                <CardHeader className="bg-gradient-to-r">
-                  <CardTitle className="text-blue-900 flex items-center gap-2">
-                    <MessageCircle className="h-5 w-5 text-blue-600" />
-                    Reviews
-                  </CardTitle>
-                  <CardDescription>
-                    What guests are saying about this property
+              <Card className="rounded-xl border-0 shadow-lg overflow-hidden">
+                <CardHeader className="border-b border-gray-100 bg-white/50 backdrop-blur-sm p-6">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <MessageCircle className="h-5 w-5 text-gray-900" />
+                    <CardTitle className="text-gray-900">Guest Reviews</CardTitle>
+                  </div>
+                  <CardDescription className="text-gray-500">
+                    Safety insights from verified guest reviews
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-6">
@@ -603,8 +617,7 @@ function ReportContent() {
                       text: review.comments,
                       date: review.createdAt,
                       rating: review.rating,
-                      author: review.author.firstName,
-                      authorImage: `https://i.pravatar.cc/150?u=${review.id}`
+                      author: review.author.firstName
                     })) || []} 
                     listingId={listing.id.toString()}
                     isLoading={isLoading}
@@ -612,10 +625,10 @@ function ReportContent() {
                   />
 
                   {/* Button to toggle individual reviews */}
-                  <div className="flex justify-center mt-6">
+                  <div className="flex justify-center mt-8">
                     <Button 
                       variant="outline" 
-                      className="flex items-center gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 border-blue-200"
+                      className="flex items-center gap-2 bg-gray-50 text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-gray-200"
                       onClick={() => setShowReviews(!showReviews)}
                     >
                       <MessageCircle className="h-4 w-4" />
@@ -628,52 +641,70 @@ function ReportContent() {
 
             {/* Location Videos Section */}
             <div id="videos" ref={sectionRefs.videos}>
-              <LocationVideos 
-                locationId={listing.id.toString()}
-                locationName={`${listing.location.city}, ${listing.location.state}`}
-                isLoading={isLoading}
-              />
+              <Card className="rounded-xl border-0 shadow-lg overflow-hidden">
+                <CardHeader className="border-b border-gray-100 bg-white/50 backdrop-blur-sm p-6">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <PlayCircle className="h-5 w-5 text-gray-900" />
+                    <CardTitle className="text-gray-900">Location Videos</CardTitle>
+                  </div>
+                  <CardDescription className="text-gray-500">
+                    Watch community videos about safety in this area
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <LocationVideos 
+                    locationId={listing.id.toString()}
+                    locationName={`${listing.location.city}, ${listing.location.state}`}
+                    isLoading={isLoading}
+                  />
+                </CardContent>
+              </Card>
             </div>
 
             {/* Alternatives Section */}
             <div id="alternatives" ref={sectionRefs.alternatives}>
-              <Card className="rounded-xl border-0 shadow-lg">
-                <CardHeader className="bg-gradient-to-r">
-                  <CardTitle className="text-blue-900 flex items-center gap-2">
-                    <StarIcon className="h-5 w-5 text-blue-600" />
-                    Safer Alternatives
-                  </CardTitle>
-                  <CardDescription>
+              <Card className="rounded-xl border-0 shadow-lg overflow-hidden">
+                <CardHeader className="border-b border-gray-100 bg-white/50 backdrop-blur-sm p-6">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <StarIcon className="h-5 w-5 text-gray-900" />
+                    <CardTitle className="text-gray-900">Safer Alternatives</CardTitle>
+                  </div>
+                  <CardDescription className="text-gray-500">
                     Similar properties with better safety scores
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     {alternatives.slice(0, 3).map((alt) => (
                       <div 
                         key={alt.id} 
-                        className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow cursor-pointer" 
+                        className="group bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow cursor-pointer" 
                         onClick={() => navigateToListing(alt.url)}
                       >
-                        <div className="flex flex-col sm:flex-row">
-                          <div className="sm:w-1/3 h-32 sm:h-auto">
+                        <div className="flex">
+                          <div className="w-1/3 relative">
                             <img 
                               src={alt.photos?.[0]?.large || "/images/placeholder-home.jpg"} 
                               alt={alt.title}
-                              className="w-full h-full object-cover"
+                              className="absolute inset-0 w-full h-full object-cover"
                             />
                           </div>
-                          <div className="p-4 sm:w-2/3">
-                            <div className="flex justify-between items-start mb-2">
-                              <h4 className="font-medium text-gray-900 line-clamp-1">{alt.title}</h4>
+                          <div className="w-2/3 p-4">
+                            <div className="flex justify-between items-start gap-4">
+                              <div>
+                                <h4 className="font-medium text-gray-900 line-clamp-1 group-hover:text-gray-700 transition-colors">
+                                  {alt.title}
+                                </h4>
+                                <p className="text-sm text-gray-500 flex items-center gap-1.5 mt-1">
+                                  <MapPin className="h-3.5 w-3.5" />
+                                  {alt.location.city}, {alt.location.state}
+                                </p>
+                                <p className="text-sm font-medium text-gray-900 mt-2">
+                                  {alt.price?.amount ? `$${alt.price.amount}` : 'Price not available'}
+                                  <span className="text-gray-500 font-normal"> per night</span>
+                                </p>
+                              </div>
                             </div>
-                            <p className="text-sm text-gray-600 flex items-center gap-1 mb-2">
-                              <MapPin className="h-3 w-3" />
-                              {alt.location.city}, {alt.location.state}
-                            </p>
-                            <p className="text-sm font-semibold text-blue-700 mb-2">
-                              {alt.price?.amount ? `$${alt.price.amount}` : 'Price not available'}
-                            </p>
                           </div>
                         </div>
                       </div>

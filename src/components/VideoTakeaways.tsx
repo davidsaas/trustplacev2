@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle, AlertTriangle, PlayCircle, ExternalLink } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { VideoTakeaways as VideoTakeawaysType } from '@/lib/gemini-takeaways';
 
 interface VideoWithTakeaways extends Omit<VideoTakeawaysType, 'positive_takeaway' | 'negative_takeaway'> {
@@ -99,14 +97,13 @@ export default function VideoTakeaways({ videos, isLoading = false, locationName
     return (
       <div className="space-y-6">
         {[1, 2].map((i) => (
-          <Card key={`skeleton-${i}`} className="overflow-hidden">
-            <Skeleton className="h-48 w-full" />
-            <CardContent className="p-4">
-              <Skeleton className="h-6 w-3/4 mb-2" />
-              <Skeleton className="h-4 w-1/2 mb-4" />
-              <Skeleton className="h-24 w-full rounded-lg" />
-            </CardContent>
-          </Card>
+          <div key={`skeleton-${i}`} className="flex flex-col gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm">
+            <Skeleton className="h-48 w-full rounded-lg" />
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+          </div>
         ))}
       </div>
     );
@@ -114,26 +111,22 @@ export default function VideoTakeaways({ videos, isLoading = false, locationName
   
   if (!videos || videos.length === 0) {
     return (
-      <Card className="p-4">
-        <p className="text-gray-500 text-center">No video insights available for {locationName || 'this location'}.</p>
-      </Card>
+      <div className="p-6 bg-gray-50 rounded-xl border border-gray-200">
+        <p className="text-gray-600 text-center">No video insights available for {locationName || 'this location'}.</p>
+      </div>
     );
   }
   
   return (
     <div className="space-y-6">
       {videos.map((video) => {
-        // Determine if this video has any valid takeaways
         const hasPositiveTakeaways = hasTakeawayContent(video.positive_takeaway);
         const hasNegativeTakeaways = hasTakeawayContent(video.negative_takeaway);
         const hasTakeaways = hasPositiveTakeaways || hasNegativeTakeaways;
-        
-        // Default tab to show
-        const defaultTab = hasPositiveTakeaways ? "positive" : 
-                           hasNegativeTakeaways ? "negative" : "positive";
+        const defaultTab = hasPositiveTakeaways ? "positive" : hasNegativeTakeaways ? "negative" : "positive";
         
         return (
-          <Card key={video.id || video.video_id} className="overflow-hidden">
+          <div key={video.id || video.video_id} className="overflow-hidden bg-white rounded-xl border border-gray-100 shadow-sm">
             {/* Video player or thumbnail */}
             <div className="relative w-full aspect-video bg-gray-100">
               {activeVideoId === video.video_id ? (
@@ -160,7 +153,6 @@ export default function VideoTakeaways({ videos, isLoading = false, locationName
                     alt={video.title || ''}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      // If maxresdefault fails, fall back to hqdefault
                       e.currentTarget.src = `https://i.ytimg.com/vi/${video.video_id}/hqdefault.jpg`;
                     }}
                   />
@@ -171,9 +163,12 @@ export default function VideoTakeaways({ videos, isLoading = false, locationName
               )}
             </div>
             
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between mb-3">
-                <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">{video.title}</h3>
+            <div className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 mb-2">{video.title}</h3>
+                  <p className="text-sm text-gray-600">{video.channel_name}</p>
+                </div>
                 {video.sentiment && (
                   <Badge 
                     variant="outline"
@@ -185,22 +180,20 @@ export default function VideoTakeaways({ videos, isLoading = false, locationName
                 )}
               </div>
               
-              <p className="text-sm text-gray-600 mb-4">{video.channel_name}</p>
-              
-              {/* Display video summary if available */}
+              {/* Video summary if available */}
               {video.summary && video.summary !== "null" && (
-                <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+                <div className="mb-6 p-4 bg-blue-50 rounded-lg text-sm text-blue-800">
                   {video.summary}
                 </div>
               )}
               
-              {/* Summary section with tabs for takeaways */}
+              {/* Safety insights with tabs */}
               {hasTakeaways ? (
                 <Tabs defaultValue={defaultTab} className="w-full">
-                  <TabsList className="w-full grid grid-cols-2 bg-slate-100 mb-4">
+                  <TabsList className="w-full grid grid-cols-2 mb-4">
                     <TabsTrigger 
                       value="positive" 
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-900"
                       disabled={!hasPositiveTakeaways}
                     >
                       <CheckCircle className="h-4 w-4" />
@@ -208,7 +201,7 @@ export default function VideoTakeaways({ videos, isLoading = false, locationName
                     </TabsTrigger>
                     <TabsTrigger 
                       value="negative" 
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 data-[state=active]:bg-rose-50 data-[state=active]:text-rose-900"
                       disabled={!hasNegativeTakeaways}
                     >
                       <AlertTriangle className="h-4 w-4" />
@@ -216,60 +209,56 @@ export default function VideoTakeaways({ videos, isLoading = false, locationName
                     </TabsTrigger>
                   </TabsList>
                   
-                  {/* Positive tab content */}
-                  <TabsContent value="positive" className="space-y-3">
+                  <TabsContent value="positive" className="mt-0">
                     {hasPositiveTakeaways ? (
-                      <div className="space-y-3">
+                      <div className="space-y-3 p-4 bg-emerald-50 rounded-lg">
                         {preprocessTakeaway(video.positive_takeaway).map((point, index) => (
                           <div key={index} className="flex items-start gap-2">
                             <CheckCircle className="h-5 w-5 text-emerald-600 mt-0.5 flex-shrink-0" />
-                            <p className="text-emerald-700">{point.startsWith('✓') ? point.substring(1).trim() : point}</p>
+                            <p className="text-emerald-800">{point.startsWith('✓') ? point.substring(1).trim() : point}</p>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-gray-500 italic">No positive safety insights found in this video.</p>
+                      <p className="text-gray-500 italic text-center p-4">No positive safety insights found in this video.</p>
                     )}
                   </TabsContent>
                   
-                  {/* Negative tab content */}
-                  <TabsContent value="negative" className="space-y-3">
+                  <TabsContent value="negative" className="mt-0">
                     {hasNegativeTakeaways ? (
-                      <div className="space-y-3">
+                      <div className="space-y-3 p-4 bg-rose-50 rounded-lg">
                         {preprocessTakeaway(video.negative_takeaway).map((point, index) => (
                           <div key={index} className="flex items-start gap-2">
                             <AlertTriangle className="h-5 w-5 text-rose-600 mt-0.5 flex-shrink-0" />
-                            <p className="text-rose-700">{point.startsWith('⚠️') ? point.substring(2).trim() : point}</p>
+                            <p className="text-rose-800">{point.startsWith('⚠️') ? point.substring(2).trim() : point}</p>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-gray-500 italic">No safety concerns reported in this video.</p>
+                      <p className="text-gray-500 italic text-center p-4">No safety concerns reported in this video.</p>
                     )}
                   </TabsContent>
                 </Tabs>
               ) : (
-                <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600 text-center">
+                <div className="p-4 bg-gray-50 rounded-lg text-sm text-gray-600 text-center">
                   No safety insights available for this video.
                 </div>
               )}
               
               {/* External link */}
-              <div className="mt-4 flex justify-end">
+              <div className="mt-6 flex justify-end">
                 <a 
                   href={`https://www.youtube.com/watch?v=${video.video_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                  tabIndex={0}
-                  aria-label="Watch on YouTube"
+                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1.5 hover:underline"
                 >
                   Watch on YouTube
-                  <ExternalLink className="h-3 w-3" />
+                  <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         );
       })}
     </div>

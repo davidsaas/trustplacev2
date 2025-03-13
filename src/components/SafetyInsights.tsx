@@ -187,8 +187,12 @@ export default function SafetyInsights({ latitude, longitude, radius = 2 }: Safe
   
   if (loading) {
     return (
-      <div className="space-y-4">
-        <SafetyTakeaways takeaways={null} isLoading={true} />
+      <div className="space-y-6">
+        <div className="space-y-4">
+          <Skeleton className="h-24 rounded-lg" />
+          <Skeleton className="h-24 rounded-lg" />
+          <Skeleton className="h-24 rounded-lg" />
+        </div>
         <div className="flex justify-between items-center mb-2">
           <div className="flex items-center gap-2">
             <Skeleton className="h-5 w-5 rounded-full" />
@@ -211,7 +215,7 @@ export default function SafetyInsights({ latitude, longitude, radius = 2 }: Safe
     );
   }
   
-  if (insights.length === 0) {
+  if (insights.length === 0 && !takeaways) {
     return (
       <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
         <p className="text-gray-500 text-center">No safety insights available for this location.</p>
@@ -223,73 +227,84 @@ export default function SafetyInsights({ latitude, longitude, radius = 2 }: Safe
   const hasMore = visibleCount < insights.length;
   
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Safety Takeaways */}
       {takeaways && (
-        <Card className="overflow-hidden">
+        <div className="space-y-4">
           {/* Summary section */}
           {takeaways.neutral_takeaway && (
-            <div className="p-4 bg-slate-50 border-b">
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
               <p className="text-gray-700">{takeaways.neutral_takeaway}</p>
             </div>
           )}
 
           {/* Tabbed interface */}
-          <Tabs defaultValue="positive" className="w-full">
-            <TabsList className="w-full grid grid-cols-2 bg-slate-100">
-              <TabsTrigger value="positive" className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4" />
-                <span>What's Good</span>
-              </TabsTrigger>
-              <TabsTrigger value="negative" className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" />
-                <span>Watch Out For</span>
-              </TabsTrigger>
-            </TabsList>
-            
-            {/* Positive tab content */}
-            <TabsContent value="positive" className="p-4 space-y-3">
-              {takeaways.positive_takeaway ? (
-                <div className="space-y-3">
-                  {preprocessTakeaway(takeaways.positive_takeaway).map((point, index) => (
-                    <div key={index} className="flex items-start gap-2">
-                      <CheckCircle className="h-5 w-5 text-emerald-600 mt-0.5 flex-shrink-0" />
-                      <p className="text-emerald-700">{point.startsWith('✓') ? point.substring(1).trim() : point}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500 italic">No positive safety insights found.</p>
-              )}
-            </TabsContent>
-            
-            {/* Negative tab content */}
-            <TabsContent value="negative" className="p-4 space-y-3">
-              {takeaways.negative_takeaway ? (
-                <div className="space-y-3">
-                  {preprocessTakeaway(takeaways.negative_takeaway).map((point, index) => (
-                    <div key={index} className="flex items-start gap-2">
-                      <AlertTriangle className="h-5 w-5 text-rose-600 mt-0.5 flex-shrink-0" />
-                      <p className="text-rose-700">{point.startsWith('⚠️') ? point.substring(2).trim() : point}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500 italic">No safety concerns reported.</p>
-              )}
-            </TabsContent>
-          </Tabs>
-        </Card>
+          <div className="rounded-lg bg-gray-50 p-0.5">
+            <Tabs defaultValue="positive" className="w-full">
+              <TabsList className="w-full grid grid-cols-2">
+                <TabsTrigger 
+                  value="positive" 
+                  className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  <span>What's Good</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="negative" 
+                  className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md"
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>Watch Out For</span>
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Positive tab content */}
+              <TabsContent value="positive" className="mt-6 space-y-3">
+                {takeaways.positive_takeaway ? (
+                  <div className="space-y-3">
+                    {preprocessTakeaway(takeaways.positive_takeaway).map((point, index) => (
+                      <div key={index} className="flex items-start gap-3 p-4 bg-emerald-50 rounded-lg">
+                        <CheckCircle className="h-5 w-5 text-emerald-600 mt-0.5 flex-shrink-0" />
+                        <p className="text-emerald-700">{point.startsWith('✓') ? point.substring(1).trim() : point}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 italic">No positive safety insights found.</p>
+                )}
+              </TabsContent>
+
+              {/* Negative tab content */}
+              <TabsContent value="negative" className="mt-6 space-y-3">
+                {takeaways.negative_takeaway ? (
+                  <div className="space-y-3">
+                    {preprocessTakeaway(takeaways.negative_takeaway).map((point, index) => (
+                      <div key={index} className="flex items-start gap-3 p-4 bg-rose-50 rounded-lg">
+                        <AlertTriangle className="h-5 w-5 text-rose-600 mt-0.5 flex-shrink-0" />
+                        <p className="text-rose-700">{point.startsWith('⚠️') ? point.substring(2).trim() : point}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 italic">No safety concerns reported.</p>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
       )}
 
       {/* Community Insights */}
       {showComments && insights.length > 0 && (
-        <div className="mt-4">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4">Community Safety Insights</h4>
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <MessageCircle className="h-5 w-5 text-blue-600" />
+            Community Safety Insights
+          </h3>
           <div className="space-y-4">
-            {insights.slice(0, visibleCount).map((insight) => (
-              <Card key={insight.id} className="p-4 hover:shadow-md transition-shadow">
-                <div className="space-y-2">
+            {visibleInsights.map((insight) => (
+              <div key={insight.id} className="p-4 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <Avatar className="h-8 w-8">
@@ -301,7 +316,7 @@ export default function SafetyInsights({ latitude, longitude, radius = 2 }: Safe
                     </div>
                     <span className="text-xs text-gray-500">{formatDate(insight.created_at)}</span>
                   </div>
-                  
+
                   <div className="flex items-start gap-2">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSentimentColor(insight.sentiment)}`}>
                       {insight.sentiment === 'positive' ? 'Safe' : 
@@ -313,71 +328,23 @@ export default function SafetyInsights({ latitude, longitude, radius = 2 }: Safe
                       </span>
                     )}
                   </div>
-                  
+
                   <p className="text-gray-700 text-sm">{insight.body}</p>
-                  
-                  {insight.url && (
-                    <a 
-                      href={insight.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-blue-600 hover:underline flex items-center gap-1"
-                    >
-                      <LinkIcon className="h-3 w-3" />
-                      <span>Source</span>
-                    </a>
-                  )}
                 </div>
-              </Card>
-            ))}
-            
-            {/* Show More Button */}
-            {insights.length > visibleCount && (
-              <div className="flex justify-center mt-6">
-                <Button 
-                  variant="outline" 
-                  className="text-blue-600 hover:text-blue-800"
-                  onClick={handleShowMore}
-                >
-                  Show {Math.min(5, insights.length - visibleCount)} More Insights
-                </Button>
               </div>
+            ))}
+
+            {hasMore && (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleShowMore}
+              >
+                <ChevronDown className="h-4 w-4 mr-2" />
+                Show More Insights
+              </Button>
             )}
           </div>
-        </div>
-      )}
-      
-      {/* Button to toggle comments */}
-      <div className="flex justify-center mt-4">
-        <Button 
-          variant="outline" 
-          className="flex items-center gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 border-blue-200"
-          onClick={() => setShowComments(!showComments)}
-        >
-          <MessageCircle className="h-4 w-4" />
-          {showComments ? "Hide Community Insights" : "See Community Insights"}
-        </Button>
-      </div>
-      
-      {/* Loading State */}
-      {loading && (
-        <div className="space-y-4">
-          <Skeleton className="h-24 rounded-lg" />
-          <Skeleton className="h-24 rounded-lg" />
-        </div>
-      )}
-      
-      {/* Error State */}
-      {error && (
-        <div className="p-4 bg-rose-50 text-rose-700 rounded-lg">
-          <p>{error}</p>
-        </div>
-      )}
-      
-      {/* Empty State */}
-      {!loading && !error && insights.length === 0 && !takeaways && (
-        <div className="text-center py-8">
-          <p className="text-gray-500">No safety insights available for this location.</p>
         </div>
       )}
     </div>

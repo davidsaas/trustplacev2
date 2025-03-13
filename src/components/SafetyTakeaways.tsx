@@ -1,5 +1,4 @@
 import React from 'react';
-import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle, AlertTriangle, Info } from 'lucide-react';
 
@@ -30,7 +29,7 @@ export default function SafetyTakeaways({ takeaways, isLoading }: SafetyTakeaway
   return (
     <div className="space-y-4">
       {takeaways.positive_takeaway && (
-        <Card className="p-4 bg-emerald-50 transition-shadow">
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
           <div className="flex items-start gap-3">
             <CheckCircle className="h-5 w-5 text-emerald-600 mt-0.5 flex-shrink-0" />
             <div>
@@ -38,11 +37,11 @@ export default function SafetyTakeaways({ takeaways, isLoading }: SafetyTakeaway
               <p className="text-emerald-700 text-sm">{takeaways.positive_takeaway}</p>
             </div>
           </div>
-        </Card>
+        </div>
       )}
       
       {takeaways.negative_takeaway && (
-        <Card className="p-4 bg-rose-50 transition-shadow">
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-lg">
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-rose-600 mt-0.5 flex-shrink-0" />
             <div>
@@ -50,11 +49,11 @@ export default function SafetyTakeaways({ takeaways, isLoading }: SafetyTakeaway
               <p className="text-rose-700 text-sm">{takeaways.negative_takeaway}</p>
             </div>
           </div>
-        </Card>
+        </div>
       )}
       
       {takeaways.neutral_takeaway && (
-        <Card className="p-4 bg-amber-50 ">
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
           <div className="flex items-start gap-3">
             <Info className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
             <div>
@@ -62,7 +61,7 @@ export default function SafetyTakeaways({ takeaways, isLoading }: SafetyTakeaway
               <p className="text-amber-700 text-sm">{takeaways.neutral_takeaway}</p>
             </div>
           </div>
-        </Card>
+        </div>
       )}
     </div>
   );

@@ -1,6 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, PlayCircle } from 'lucide-react';
 import type { Database } from '@/lib/supabase-types';
@@ -107,82 +105,44 @@ export default function LocationVideos({ locationId, locationName, isLoading = f
   
   if (isLoading || loading) {
     return (
-      <Card className="rounded-xl border-0 shadow-lg">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100">
-          <CardTitle className="text-blue-900 flex items-center gap-2">
-            <PlayCircle className="h-5 w-5 text-blue-600" />
-            Location Videos
-          </CardTitle>
-          <CardDescription>
-            YouTube videos about this location
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6">
-          <Skeleton className="h-8 w-64 mb-6" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={`skeleton-${i}`} className="flex flex-col gap-4">
-                <Skeleton className="h-48 w-full rounded-md" />
-                <div className="space-y-2">
-                  <Skeleton className="h-6 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
-                </div>
-              </div>
-            ))}
+      <div className="space-y-6">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={`skeleton-${i}`} className="flex flex-col gap-4">
+            <Skeleton className="h-48 w-full rounded-md" />
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        ))}
+      </div>
     );
   }
   
   if (error) {
     return (
-      <Card className="rounded-xl border-0 shadow-lg">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100">
-          <CardTitle className="text-blue-900 flex items-center gap-2">
-            <PlayCircle className="h-5 w-5 text-blue-600" />
-            Location Videos
-          </CardTitle>
-          <CardDescription>
-            YouTube videos about this location
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center p-6 text-center">
-            <div className="flex flex-col items-center">
-              <AlertCircle className="h-8 w-8 text-amber-500 mb-2" />
-              <p className="text-gray-600">{error}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center p-6 bg-amber-50 rounded-lg border border-amber-200">
+        <div className="flex flex-col items-center">
+          <AlertCircle className="h-8 w-8 text-amber-500 mb-2" />
+          <p className="text-amber-700">{error}</p>
+        </div>
+      </div>
     );
   }
   
   return (
-    <Card className="rounded-xl border-0 shadow-lg">
-      <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100">
-        <CardTitle className="text-blue-900 flex items-center gap-2">
-          <PlayCircle className="h-5 w-5 text-blue-600" />
-          Location Videos
-        </CardTitle>
-        <CardDescription>
-          YouTube videos about {locationName || 'this location'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-6">
-        {videos.length === 0 ? (
-          <div className="flex items-center justify-center p-6 text-center">
-            <p className="text-gray-600">No videos found for this location.</p>
-          </div>
-        ) : (
-          <VideoTakeaways 
-            videos={videoTakeaways} 
-            isLoading={processingTakeaways}
-            locationName={locationName}
-          />
-        )}
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      {videos.length === 0 ? (
+        <div className="flex items-center justify-center p-6 bg-gray-50 rounded-lg border border-gray-200">
+          <p className="text-gray-600">No videos found for this location.</p>
+        </div>
+      ) : (
+        <VideoTakeaways 
+          videos={videoTakeaways} 
+          isLoading={processingTakeaways}
+          locationName={locationName}
+        />
+      )}
+    </div>
   );
 } 

@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Shield, Moon, Car, Baby, Train, User } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 
 // Define types for safety metrics
 export type SafetyMetricType = 'night' | 'vehicle' | 'child' | 'transit' | 'women';
@@ -204,42 +205,8 @@ export default function SafetyMetrics({ latitude, longitude, city = "Los Angeles
     };
   }, [latitude, longitude, retryCount]); // Add retryCount to dependencies
 
-  // Fallback metrics for when data isn't available
-  const defaultMetrics: SafetyMetric[] = [
-    {
-      type: 'night',
-      score: 7,
-      question: 'Can I go outside after dark?',
-      description: 'This area has moderate night safety based on reported incidents.'
-    },
-    {
-      type: 'vehicle',
-      score: 6,
-      question: 'Can I park here safely?',
-      description: 'Vehicle-related incidents are within average ranges for this city.'
-    },
-    {
-      type: 'child',
-      score: 8,
-      question: 'Are kids safe here?',
-      description: 'The area shows good safety levels for families with children.'
-    },
-    {
-      type: 'transit',
-      score: 5,
-      question: 'Is it safe to use public transport?',
-      description: 'Public transit safety is moderate in this area.'
-    },
-    {
-      type: 'women',
-      score: 6,
-      question: 'Would I be harassed here?',
-      description: 'Women\'s safety is moderately good based on reported incidents.'
-    }
-  ];
-
-  // Use fetched metrics or fallback to defaults if empty
-  const displayMetrics = metrics.length > 0 ? metrics : defaultMetrics;
+  // Remove defaultMetrics array and update the displayMetrics logic
+  const displayMetrics = metrics;
 
   // Calculate and update overall score whenever metrics change
   useEffect(() => {
@@ -251,19 +218,19 @@ export default function SafetyMetrics({ latitude, longitude, city = "Los Angeles
 
   if (error) {
     return (
-      <Card className="w-full mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Shield className="mr-2 h-5 w-5 text-red-500" />
-            Safety Metrics
-          </CardTitle>
-          <CardDescription>
-            Information about safety in this area
+      <Card className="w-full mb-6 border-0 shadow-lg rounded-xl overflow-hidden">
+        <CardHeader className="border-b border-gray-100 bg-white/50 backdrop-blur-sm p-6">
+          <div className="flex items-center gap-2 mb-1.5">
+            <Shield className="h-5 w-5 text-gray-900" />
+            <CardTitle className="text-gray-900">Safety Metrics</CardTitle>
+          </div>
+          <CardDescription className="text-gray-500">
+            Safety information for {city}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="p-4 text-center text-red-500">
-            {error}
+        <CardContent className="p-6">
+          <div className="p-4 bg-rose-50 rounded-lg border border-rose-200">
+            <p className="text-rose-800 text-center">{error}</p>
           </div>
         </CardContent>
       </Card>
@@ -299,21 +266,42 @@ export default function SafetyMetrics({ latitude, longitude, city = "Los Angeles
     );
   }
 
+  if (!displayMetrics || displayMetrics.length === 0) {
+    return (
+      <Card className="w-full mb-6 border-0 shadow-lg rounded-xl overflow-hidden">
+        <CardHeader className="border-b border-gray-100 bg-white/50 backdrop-blur-sm p-6">
+          <div className="flex items-center gap-2 mb-1.5">
+            <Shield className="h-5 w-5 text-gray-900" />
+            <CardTitle className="text-gray-900">Safety Metrics</CardTitle>
+          </div>
+          <CardDescription className="text-gray-500">
+            Safety information for {city}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <p className="text-gray-600 text-center">No safety metrics are currently available for this location. We're working on gathering more data.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="w-full mb-6 border-0 shadow-lg rounded-xl overflow-hidden">
-      <CardHeader className="border-b border-gray-100 bg-white/50 backdrop-blur-sm">
-        <CardTitle className="flex items-center text-gray-800">
-          <Shield className="mr-2 h-5 w-5 text-blue-500" />
-          Safety Metrics
-        </CardTitle>
+      <CardHeader className="border-b border-gray-100 bg-white/50 backdrop-blur-sm p-6">
+        <div className="flex items-center gap-2 mb-1.5">
+          <Shield className="h-5 w-5 text-gray-900" />
+          <CardTitle className="text-gray-900">Safety Metrics</CardTitle>
+        </div>
         <CardDescription className="text-gray-500">
           Safety information for {city} based on official police data
         </CardDescription>
       </CardHeader>
-      <CardContent className="p-6 bg-white">
+      <CardContent className="p-6 bg-white space-y-8">
         {/* Overall Score Description */}
-        <div className={`mb-6 p-4 rounded-lg ${getBackgroundColorClass(calculateOverallScore(displayMetrics) / 10)}`}>
-          <p className="text-sm text-gray-700">
+        <div className={`p-4 rounded-xl ${getBackgroundColorClass(calculateOverallScore(displayMetrics) / 10)}`}>
+          <p className="text-sm text-gray-700 leading-relaxed">
             {getScoreDescription(calculateOverallScore(displayMetrics))}
           </p>
         </div>
@@ -328,26 +316,26 @@ export default function SafetyMetrics({ latitude, longitude, city = "Los Angeles
             const textColor = getScoreColorClass(metric.score);
             
             return (
-              <div key={metric.type} className="space-y-3">
+              <div key={metric.type} className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${backgroundColor}`}>
+                    <div className={`p-2.5 rounded-xl ${backgroundColor}`}>
                       <Icon className={`h-5 w-5 ${textColor}`} />
                     </div>
-                    <h3 className="font-medium text-gray-700">{metric.question}</h3>
+                    <div>
+                      <h3 className="font-medium text-gray-900">{metric.question}</h3>
+                      <p className="text-sm text-gray-500 mt-0.5">{metric.description}</p>
+                    </div>
                   </div>
-                  <span className={`font-medium text-sm px-3 py-1 rounded-full ${backgroundColor} ${textColor}`}>
+                  <Badge variant="outline" className={`${backgroundColor} ${textColor} border-0`}>
                     {riskLevel}
-                  </span>
+                  </Badge>
                 </div>
-                <div className="space-y-2">
-                  <div className="relative h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                    <div 
-                      className={`absolute left-0 top-0 h-full transition-all duration-500 rounded-full ${progressColor}`}
-                      style={{ width: `${scorePercentage}%` }}
-                    />
-                  </div>
-                  <p className="text-sm text-gray-500">{metric.description}</p>
+                <div className="relative h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                  <div 
+                    className={`absolute left-0 top-0 h-full transition-all duration-700 ease-in-out rounded-full ${progressColor}`}
+                    style={{ width: `${scorePercentage}%` }}
+                  />
                 </div>
               </div>
             );

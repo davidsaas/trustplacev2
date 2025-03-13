@@ -164,40 +164,39 @@ export default function ReviewTakeaways({ reviews, listingId, isLoading, showInd
   }
   
   return (
-    <div className="space-y-6">
+    <div>
       {/* Takeaways Section - Only shown if available */}
       {hasTakeaways && (
-        <div className="space-y-4">
-          {/* Main summary card with tabs */}
-          <Card className="overflow-hidden">
-            {/* Summary section */}
-            {takeaways.review_summary && (
-              <div className="p-4 bg-slate-50 border-b">
-                <p className="text-gray-700">{takeaways.review_summary}</p>
-              </div>
-            )}
+        <>
 
-            {/* Tabbed interface */}
+          {/* Tabbed interface */}
+          <div className="rounded-lg bg-gray-50 p-0.5">
             <Tabs defaultValue="positive" className="w-full">
-              <TabsList className="w-full grid grid-cols-2 bg-slate-100">
-                <TabsTrigger value="positive" className="flex items-center gap-2">
+              <TabsList className="w-full grid grid-cols-2">
+                <TabsTrigger 
+                  value="positive" 
+                  className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md"
+                >
                   <CheckCircle className="h-4 w-4" />
                   <span>What's Good</span>
                 </TabsTrigger>
-                <TabsTrigger value="negative" className="flex items-center gap-2">
+                <TabsTrigger 
+                  value="negative" 
+                  className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md"
+                >
                   <AlertTriangle className="h-4 w-4" />
                   <span>Watch Out For</span>
                 </TabsTrigger>
               </TabsList>
               
               {/* Positive tab content */}
-              <TabsContent value="positive" className="p-4 space-y-3">
+              <TabsContent value="positive" className="mt-6 space-y-3">
                 {takeaways.positive_takeaway ? (
                   <div className="space-y-3">
                     {preprocessTakeaway(takeaways.positive_takeaway).map((point, index) => (
-                      <div key={index} className="flex items-start gap-2">
+                      <div key={index} className="flex items-start gap-3 p-4 bg-emerald-50 rounded-lg">
                         <CheckCircle className="h-5 w-5 text-emerald-600 mt-0.5 flex-shrink-0" />
-                        <p className="text-emerald-700">{point.startsWith('✓') ? point.substring(1).trim() : point}</p>
+                        <p className="text-emerald-800">{point.startsWith('✓') ? point.substring(1).trim() : point}</p>
                       </div>
                     ))}
                   </div>
@@ -207,13 +206,13 @@ export default function ReviewTakeaways({ reviews, listingId, isLoading, showInd
               </TabsContent>
               
               {/* Negative tab content */}
-              <TabsContent value="negative" className="p-4 space-y-3">
+              <TabsContent value="negative" className="mt-6 space-y-3">
                 {takeaways.negative_takeaway ? (
                   <div className="space-y-3">
                     {preprocessTakeaway(takeaways.negative_takeaway).map((point, index) => (
-                      <div key={index} className="flex items-start gap-2">
+                      <div key={index} className="flex items-start gap-3 p-4 bg-rose-50 rounded-lg">
                         <AlertTriangle className="h-5 w-5 text-rose-600 mt-0.5 flex-shrink-0" />
-                        <p className="text-rose-700">{point.startsWith('⚠️') ? point.substring(2).trim() : point}</p>
+                        <p className="text-rose-800">{point.startsWith('⚠️') ? point.substring(2).trim() : point}</p>
                       </div>
                     ))}
                   </div>
@@ -222,48 +221,48 @@ export default function ReviewTakeaways({ reviews, listingId, isLoading, showInd
                 )}
               </TabsContent>
             </Tabs>
-          </Card>
-        </div>
+          </div>
+        </>
       )}
 
       {/* Individual Reviews Section - Only show when toggled */}
       {showIndividualReviews && (
         <div className="mt-8">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4">Individual Reviews</h4>
           <div className="space-y-4">
             {reviews.slice(0, visibleCount).map((review) => (
-              <Card key={review.id} className="p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-start gap-4">
-                  <Avatar className="h-10 w-10 bg-white">
-                    <AvatarImage src="/images/airbnb-logo.png" alt="Airbnb" />
-                    <AvatarFallback>
-                      <svg viewBox="0 0 24 24" fill="#FF5A5F" xmlns="http://www.w3.org/2000/svg" className="h-6 w-6">
-                        <path d="M12 2C14.5 2 16.5 4 16.5 6.5C16.5 9 15 11.5 12 14.5C9 11.5 7.5 9 7.5 6.5C7.5 4 9.5 2 12 2ZM12 0C8.5 0 5.5 3 5.5 6.5C5.5 10 7.5 13 12 17.5C16.5 13 18.5 10 18.5 6.5C18.5 3 15.5 0 12 0Z" />
-                        <path d="M12 5.5C11.2 5.5 10.5 6.2 10.5 7C10.5 7.8 11.2 8.5 12 8.5C12.8 8.5 13.5 7.8 13.5 7C13.5 6.2 12.8 5.5 12 5.5Z" />
-                      </svg>
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium text-gray-900">{review.author}</span>
-                      <span className="text-sm text-gray-500">{formatDate(review.date)}</span>
-                    </div>
-                    <div className="flex items-center gap-1 mb-2">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`h-4 w-4 ${
-                            i < review.rating
-                              ? 'text-yellow-400 fill-current'
-                              : 'text-gray-300'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-gray-700">{review.text}</p>
+              <div 
+                key={review.id} 
+                className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg"
+              >
+                <Avatar className="h-10 w-10 bg-white">
+                  <AvatarImage src="/images/airbnb-logo.png" alt="Airbnb" />
+                  <AvatarFallback>
+                    <svg viewBox="0 0 24 24" fill="#FF5A5F" xmlns="http://www.w3.org/2000/svg" className="h-6 w-6">
+                      <path d="M12 2C14.5 2 16.5 4 16.5 6.5C16.5 9 15 11.5 12 14.5C9 11.5 7.5 9 7.5 6.5C7.5 4 9.5 2 12 2ZM12 0C8.5 0 5.5 3 5.5 6.5C5.5 10 7.5 13 12 17.5C16.5 13 18.5 10 18.5 6.5C18.5 3 15.5 0 12 0Z" />
+                      <path d="M12 5.5C11.2 5.5 10.5 6.2 10.5 7C10.5 7.8 11.2 8.5 12 8.5C12.8 8.5 13.5 7.8 13.5 7C13.5 6.2 12.8 5.5 12 5.5Z" />
+                    </svg>
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium text-gray-900">{review.author}</span>
+                    <span className="text-sm text-gray-500">{formatDate(review.date)}</span>
                   </div>
+                  <div className="flex items-center gap-1 mb-2">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`h-4 w-4 ${
+                          i < review.rating
+                            ? 'text-yellow-400 fill-current'
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-gray-700">{review.text}</p>
                 </div>
-              </Card>
+              </div>
             ))}
 
             {/* Show More Button */}
@@ -271,7 +270,7 @@ export default function ReviewTakeaways({ reviews, listingId, isLoading, showInd
               <div className="flex justify-center mt-6">
                 <Button
                   variant="outline"
-                  className="text-blue-600 hover:text-blue-800"
+                  className="text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50"
                   onClick={handleShowMore}
                 >
                   Show {Math.min(5, reviews.length - visibleCount)} More Reviews
