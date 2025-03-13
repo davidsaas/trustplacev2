@@ -49,7 +49,6 @@ function ReportContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [listing, setListing] = useState<ApifyListing | null>(null);
-  const [allListings, setAllListings] = useState<ApifyListing[]>([]);
   const [safetyReviews, setSafetyReviews] = useState<Array<{
     id: string;
     text: string;
@@ -66,8 +65,7 @@ function ReportContent() {
   const [showSafetyInsights, setShowSafetyInsights] = useState(false);
   const [showReviews, setShowReviews] = useState(false);
   const [overallSafetyScore, setOverallSafetyScore] = useState<number>(0);
-  const [listingSafetyScores, setListingSafetyScores] = useState<Record<string, number>>({});
-  const [currentCalculatingUrl, setCurrentCalculatingUrl] = useState<string | null>(null);
+  const [allListings, setAllListings] = useState<ApifyListing[]>([]);
 
   // Refs for each section
   const sectionRefs = {
@@ -86,50 +84,6 @@ function ReportContent() {
     router.push(`/report?url=${encodeURIComponent(url)}`);
   };
 
-  // Function to update a listing's safety score
-  const updateListingSafetyScore = (url: string, score: number) => {
-    setListingSafetyScores(prev => ({
-      ...prev,
-      [url]: score
-    }));
-    // Clear current calculating URL after score is set
-    setCurrentCalculatingUrl(null);
-  };
-
-  // Function to get the next URL to calculate
-  const getNextUrlToCalculate = () => {
-    if (!listing) return null;
-    
-    // If main listing score not calculated yet, do it first
-    if (!listingSafetyScores[listing.url]) {
-      return listing.url;
-    }
-    
-    // Then check alternatives
-    const alternativeUrl = alternatives.find(alt => !listingSafetyScores[alt.url])?.url;
-    if (alternativeUrl) {
-      return alternativeUrl;
-    }
-    
-    // Finally check nearby listings
-    const nearbyUrl = allListings.find(l => !listingSafetyScores[l.url])?.url;
-    if (nearbyUrl) {
-      return nearbyUrl;
-    }
-    
-    return null;
-  };
-
-  // Effect to manage safety score calculations
-  useEffect(() => {
-    if (isLoading || !listing || currentCalculatingUrl) return;
-    
-    const nextUrl = getNextUrlToCalculate();
-    if (nextUrl) {
-      setCurrentCalculatingUrl(nextUrl);
-    }
-  }, [isLoading, listing, currentCalculatingUrl, listingSafetyScores, alternatives, allListings]);
-
   // Memoize the map component to prevent flickering on scroll
   const mobileMapComponent = useMemo(() => {
     if (!listing || !listing.location.coordinates) return null;
@@ -137,13 +91,13 @@ function ReportContent() {
       <MapView
         mainLocation={{
           location: `${listing.location.city}, ${listing.location.state}`,
-          safetyScore: overallSafetyScore,
+          safetyScore: calculateSafetyScore(listing),
           coordinates: [listing.location.coordinates.lng, listing.location.coordinates.lat],
           url: listing.url
         }}
         alternativeLocations={alternatives.map(alt => ({
           location: `${alt.location.city}, ${alt.location.state}`,
-          safetyScore: listingSafetyScores[alt.url] || 0,
+          safetyScore: calculateSafetyScore(alt),
           coordinates: [alt.location.coordinates.lng, alt.location.coordinates.lat],
           url: alt.url,
           distanceKm: alt.distanceKm,
@@ -153,15 +107,14 @@ function ReportContent() {
         }))}
         allListings={allListings.map(l => ({
           location: `${l.location.city}, ${l.location.state}`,
-          safetyScore: listingSafetyScores[l.url] || 0,
+          safetyScore: calculateSafetyScore(l),
           coordinates: [l.location.coordinates.lng, l.location.coordinates.lat],
-          url: l.url,
-          price: l.price?.amount || l.pricing?.rate?.amount
+          url: l.url
         }))}
         onLocationClick={navigateToListing}
       />
     );
-  }, [listing, alternatives, allListings, overallSafetyScore, listingSafetyScores]);
+  }, [listing, alternatives, allListings]);
 
   // Memoize the desktop map component to prevent flickering on scroll
   const desktopMapComponent = useMemo(() => {
@@ -170,13 +123,13 @@ function ReportContent() {
       <MapView
         mainLocation={{
           location: `${listing.location.city}, ${listing.location.state}`,
-          safetyScore: overallSafetyScore,
+          safetyScore: calculateSafetyScore(listing),
           coordinates: [listing.location.coordinates.lng, listing.location.coordinates.lat],
           url: listing.url
         }}
         alternativeLocations={alternatives.map(alt => ({
           location: `${alt.location.city}, ${alt.location.state}`,
-          safetyScore: listingSafetyScores[alt.url] || 0,
+          safetyScore: calculateSafetyScore(alt),
           coordinates: [alt.location.coordinates.lng, alt.location.coordinates.lat],
           url: alt.url,
           distanceKm: alt.distanceKm,
@@ -186,15 +139,14 @@ function ReportContent() {
         }))}
         allListings={allListings.map(l => ({
           location: `${l.location.city}, ${l.location.state}`,
-          safetyScore: listingSafetyScores[l.url] || 0,
+          safetyScore: calculateSafetyScore(l),
           coordinates: [l.location.coordinates.lng, l.location.coordinates.lat],
-          url: l.url,
-          price: l.price?.amount || l.pricing?.rate?.amount
+          url: l.url
         }))}
         onLocationClick={navigateToListing}
       />
     );
-  }, [listing, alternatives, allListings, overallSafetyScore, listingSafetyScores]);
+  }, [listing, alternatives, allListings]);
 
   // Wait for auth to be ready before initializing
   useEffect(() => {
@@ -214,8 +166,8 @@ function ReportContent() {
           throw new Error(error || 'Failed to fetch listings');
         }
 
-        // Store all listings
-        setAllListings(listings);
+        // Log the first listing to see its structure
+        console.log('First listing structure:', JSON.stringify(listings[0], null, 2));
 
         // Normalize the URL we're looking for
         const normalizedSearchUrl = normalizeAirbnbUrl(url);
@@ -281,6 +233,8 @@ function ReportContent() {
         } else {
           console.log('Missing coordinates:', matchingListing.location);
         }
+
+        setAllListings(listings);
 
         setIsLoading(false);
       } catch (err) {
@@ -633,30 +587,12 @@ function ReportContent() {
 
             {/* Safety Metrics Section */}
             <div id="safety" ref={sectionRefs.safety}>
-              {currentCalculatingUrl && (() => {
-                const targetListing = currentCalculatingUrl === listing?.url 
-                  ? listing 
-                  : alternatives.find(alt => alt.url === currentCalculatingUrl) 
-                    || allListings.find(l => l.url === currentCalculatingUrl);
-                
-                if (!targetListing) return null;
-                
-                return (
-                  <div className={currentCalculatingUrl === listing?.url ? '' : 'hidden'}>
-                    <SafetyMetrics 
-                      latitude={targetListing.location.coordinates.lat} 
-                      longitude={targetListing.location.coordinates.lng}
-                      city={targetListing.location.city}
-                      onOverallScoreCalculated={(score) => {
-                        if (currentCalculatingUrl === listing?.url) {
-                          setOverallSafetyScore(score);
-                        }
-                        updateListingSafetyScore(currentCalculatingUrl, score);
-                      }}
-                    />
-                  </div>
-                );
-              })()}
+              <SafetyMetrics 
+                latitude={listing.location.coordinates.lat} 
+                longitude={listing.location.coordinates.lng}
+                city={listing.location.city}
+                onOverallScoreCalculated={setOverallSafetyScore}
+              />
             </div>
 
             {/* Community Opinions Section */}
