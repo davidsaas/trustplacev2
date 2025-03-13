@@ -184,7 +184,7 @@ def process_crime_data(crime_data):
     df = pd.DataFrame(crime_data)
     
     # Convert date and coordinates with explicit error handling
-    print("Converting dates and calculating time weights...")
+    print("Converting dates...")
     df['date_occ'] = pd.to_datetime(df['date_occ'], errors='coerce')
     
     # Remove future dates and invalid dates
@@ -197,10 +197,6 @@ def process_crime_data(crime_data):
     
     # Calculate time-based fields
     df['hour'] = df['date_occ'].dt.hour
-    df['days_ago'] = (now - df['date_occ']).dt.total_seconds() / (24 * 3600)  # More precise calculation
-    
-    # Weight recent crimes more heavily (exponential decay with 180-day half-life)
-    df['time_weight'] = np.exp(-df['days_ago'] * (np.log(2) / 180))
     
     # Convert coordinates
     df['lat'] = pd.to_numeric(df['lat'], errors='coerce')
@@ -220,8 +216,7 @@ def process_crime_data(crime_data):
     print("\nData Summary:")
     print(f"Total valid records: {len(df):,}")
     print(f"Date range: {df['date_occ'].min()} to {df['date_occ'].max()}")
-    print(f"Records in last 90 days: {len(df[df['days_ago'] <= 90]):,}")
-    print(f"Average incidents per day: {len(df) / df['days_ago'].max():.1f}")
+    print(f"Average incidents per day: {len(df) / ((now - df['date_occ'].min()).days or 1):.1f}")
     
     return df
 
@@ -234,7 +229,7 @@ def calculate_safety_metrics(crime_data):
     lats = np.arange(33.70, 34.83, 0.01)
     lons = np.arange(-118.67, -117.65, 0.01)
     
-    # Calculate citywide weighted crime rates for normalization
+    # Calculate citywide crime rates for normalization
     print("\nCalculating citywide crime rates...")
     citywide_rates = {}
     citywide_stats = {}
@@ -243,20 +238,17 @@ def calculate_safety_metrics(crime_data):
         if 'time_filter' in config:
             crimes_of_type = crimes_of_type[crimes_of_type['hour'].apply(config['time_filter'])]
         
-        total_weighted_crimes = crimes_of_type['time_weight'].sum()
-        total_recent_crimes = len(crimes_of_type[crimes_of_type['days_ago'] <= 90])
         total_crimes = len(crimes_of_type)
+        total_all_crimes = len(crime_data)
         
-        citywide_rates[metric_type] = total_weighted_crimes / crime_data['time_weight'].sum() if len(crime_data) > 0 else 0
+        citywide_rates[metric_type] = total_crimes / total_all_crimes if total_all_crimes > 0 else 0
         citywide_stats[metric_type] = {
             'total_crimes': total_crimes,
-            'recent_crimes': total_recent_crimes,
-            'crimes_per_day': total_crimes / (crime_data['days_ago'].max() or 1)
+            'crimes_per_day': total_crimes / ((crime_data['date_occ'].max() - crime_data['date_occ'].min()).days or 1)
         }
         
         print(f"\n{metric_type.title()} Crimes:")
         print(f"  Total incidents: {total_crimes:,}")
-        print(f"  Recent incidents (90 days): {total_recent_crimes:,}")
         print(f"  Average per day: {citywide_stats[metric_type]['crimes_per_day']:.1f}")
     
     print("\nProcessing grid cells...")
@@ -293,46 +285,33 @@ def calculate_safety_metrics(crime_data):
                 if len(crimes) == 0:
                     continue
                 
-                # Calculate relative crime rate compared to citywide average using weighted crimes
-                local_weighted_rate = crimes['time_weight'].sum() / grid_crimes['time_weight'].sum()
-                relative_rate = local_weighted_rate / citywide_rates[metric_type] if citywide_rates[metric_type] > 0 else 1
+                # Calculate relative crime rate compared to citywide average
+                local_rate = len(crimes) / len(grid_crimes)
+                relative_rate = local_rate / citywide_rates[metric_type] if citywide_rates[metric_type] > 0 else 1
                 
                 # Adjusted risk thresholds based on relative rate
-                if relative_rate <= 0.3:  # Much safer than average
+                if relative_rate <= 0.7:  # Significantly safer than average
                     risk_level = "Low risk"
                     score = 8
-                elif relative_rate <= 0.7:  # Somewhat safer than average
+                elif relative_rate <= 1.0:  # Safer than average
                     risk_level = "Medium risk"
                     score = 6
-                elif relative_rate <= 1.5:  # Around average
+                elif relative_rate <= 1.5:  # Somewhat more dangerous than average
                     risk_level = "High risk"
                     score = 4
                 else:  # Significantly more dangerous than average
                     risk_level = "Maximum risk"
                     score = 2
                 
-                # Calculate recent and historical metrics
-                recent_crimes = len(crimes[crimes['days_ago'] <= 90])
+                # Calculate total crimes and rate
                 total_crimes = len(crimes)
-                days_covered = crimes['days_ago'].max() or 1
-                
-                # Calculate rates and trends
-                recent_rate = recent_crimes / 90 * 365 if recent_crimes > 0 else 0  # Annualized recent rate
-                historical_rate = total_crimes / days_covered * 365  # Annualized historical rate
-                
-                # Determine trend
-                if recent_rate > historical_rate * 1.2:
-                    trend = "↑"  # Increasing
-                elif recent_rate < historical_rate * 0.8:
-                    trend = "↓"  # Decreasing
-                else:
-                    trend = "→"  # Stable
+                days_covered = (crime_data['date_occ'].max() - crime_data['date_occ'].min()).days or 1
+                crimes_per_day = total_crimes / days_covered
                 
                 # Enhanced debug info
                 debug_info = (
-                    f" [Debug: {total_crimes} incidents "
-                    f"({recent_crimes} in last 90 days) {trend}, "
-                    f"{relative_rate:.2f}x city average]"  # Removed extra space and ~yearly rate
+                    f" [Debug: {total_crimes} incidents, "
+                    f"{relative_rate:.2f}x city average]"
                 )
                 
                 # Create timestamps in UTC format

@@ -13,6 +13,7 @@ import { ArrowLeft, AlertCircle, Star, MapPin, Bus, Moon, Users, Home, Map, Mess
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
+import { useAuth } from "@/components/providers/auth-provider";
 // Prevent map blinking with persistent instance across renders
 const MapView = dynamic(() => import("@/components/map-view"), { 
   ssr: false,
@@ -25,6 +26,8 @@ import SafetyInsights from "@/components/SafetyInsights";
 import ReviewTakeaways from "@/components/ReviewTakeaways";
 import LocationVideos from "@/components/LocationVideos";
 import SafetyMetrics from "@/components/SafetyMetrics";
+import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
+import 'react-circular-progressbar/dist/styles.css';
 
 
 // Navigation sections for the sticky menu
@@ -41,6 +44,7 @@ const navigationSections = [
 function ReportContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user, ready } = useAuth();
   const url = searchParams?.get("url");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +64,7 @@ function ReportContent() {
   const [activeSection, setActiveSection] = useState("overview");
   const [showSafetyInsights, setShowSafetyInsights] = useState(false);
   const [showReviews, setShowReviews] = useState(false);
+  const [overallSafetyScore, setOverallSafetyScore] = useState<number>(0);
 
   // Refs for each section
   const sectionRefs = {
@@ -122,7 +127,10 @@ function ReportContent() {
     );
   }, [listing, alternatives]);
 
+  // Wait for auth to be ready before initializing
   useEffect(() => {
+    if (!ready) return;
+    
     const initializeReport = async () => {
       if (!url) {
         setError("No Airbnb URL provided");
@@ -209,11 +217,12 @@ function ReportContent() {
       } catch (err) {
         console.error('Error processing listing:', err);
         setError(err instanceof Error ? err.message : 'An error occurred');
+        setIsLoading(false);
       }
     };
 
     initializeReport();
-  }, [url, router]);
+  }, [url, router, ready]);
 
 
   // Intersection Observer to detect which section is in view
@@ -460,41 +469,79 @@ function ReportContent() {
           <div className="w-full md:w-[40%] space-y-6">
             {/* Overview Section */}
             <div id="overview" ref={sectionRefs.overview}>
-              <Card className="overflow-hidden rounded-xl border-0 shadow-l  p-0">
+              <Card className="overflow-hidden rounded-xl border-0 shadow-lg">
                 <div className="relative">
                   <div className="h-72 overflow-hidden">
                     <img
                       src={listing.photos?.[0]?.large}
                       alt={listing.title}
-                      className="w-full object-cover"
+                      className="w-full h-full object-cover"
                     />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+                      <h2 className="text-2xl font-bold mb-2">{listing.title}</h2>
+                      <p className="flex items-center gap-1 text-white/90">
+                        <MapPin className="h-4 w-4" />
+                        {listing.location.city}, {listing.location.state}
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <CardContent className="p-6">
-                  <div className="flex flex-col">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-1">{listing.title}</h2>
-                    <p className="text-gray-600 flex items-center gap-1 mb-3">
-                      <MapPin className="h-4 w-4" />
-                      {listing.location.city}, {listing.location.state}
-                    </p>
-                    <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
                       <p className="text-xl font-semibold text-blue-700">
                         {listing.price?.amount ? `$${listing.price.amount}` : 'Price not available'} 
                         <span className="text-sm font-normal text-gray-600 ml-1">per night</span>
                       </p>
-                      <Button 
-                        onClick={handleSaveReport}
-                        disabled={saving}
-                        variant="ghost"
-                        size="icon"
-                        className={`flex items-center justify-center w-10 h-10 rounded-full transition-all hover:bg-gray-100 ${saving ? 'opacity-70' : ''} ${isSaved ? 'hover:bg-red-50' : 'hover:bg-gray-50'}`}
-                        aria-label={isSaved ? "Remove from saved" : "Save report"}
-                      >
-                        <Heart 
-                          className={`h-6 w-6 transition-all ${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-500 hover:text-red-400'} 
-                            ${heartAnimation ? 'animate-heartbeat' : ''}`} 
-                        />
-                      </Button>
+                    </div>
+                    <Button 
+                      onClick={handleSaveReport}
+                      disabled={saving}
+                      variant="ghost"
+                      size="icon"
+                      className={`flex items-center justify-center w-10 h-10 rounded-full transition-all hover:bg-gray-100 ${saving ? 'opacity-70' : ''} ${isSaved ? 'hover:bg-red-50' : 'hover:bg-gray-50'}`}
+                      aria-label={isSaved ? "Remove from saved" : "Save report"}
+                    >
+                      <Heart 
+                        className={`h-6 w-6 transition-all ${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-500 hover:text-red-400'} 
+                          ${heartAnimation ? 'animate-heartbeat' : ''}`} 
+                      />
+                    </Button>
+                  </div>
+                  
+                  <div className="flex items-center gap-8 p-6 bg-gray-50 rounded-xl">
+                    <div className="w-24 h-24">
+                      <CircularProgressbar
+                        value={overallSafetyScore}
+                        text={`${overallSafetyScore}`}
+                        styles={buildStyles({
+                          textSize: '24px',
+                          pathColor: overallSafetyScore >= 80 ? '#22c55e' : 
+                                    overallSafetyScore >= 60 ? '#3b82f6' : 
+                                    overallSafetyScore >= 40 ? '#eab308' : '#ef4444',
+                          textColor: '#1f2937',
+                          trailColor: '#e5e7eb',
+                        })}
+                      />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">Safety Score</h3>
+                      <p className="text-sm text-gray-600">
+                        Based on official crime data, local insights, and community feedback
+                      </p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant="outline" className={
+                          overallSafetyScore >= 80 ? 'bg-green-50 text-green-700 border-green-200' :
+                          overallSafetyScore >= 60 ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                          overallSafetyScore >= 40 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                          'bg-red-50 text-red-700 border-red-200'
+                        }>
+                          {overallSafetyScore >= 80 ? 'Very Safe' :
+                           overallSafetyScore >= 60 ? 'Safe' :
+                           overallSafetyScore >= 40 ? 'Moderate' : 'Exercise Caution'}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -503,27 +550,12 @@ function ReportContent() {
 
             {/* Safety Metrics Section */}
             <div id="safety" ref={sectionRefs.safety}>
-              <Card className="rounded-xl border-0 shadow-lg mb-6">
-                <CardHeader className="bg-gradient-to-r">
-                  <CardTitle className="text-blue-900 flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-blue-600" />
-                    Safety Metrics
-                  </CardTitle>
-                  <CardDescription>
-                    Safety data based on official police records
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-6">
-                  {/* Safety Metrics from our database */}
-                  {listing && (
-                    <SafetyMetrics 
-                      latitude={listing.location.coordinates.lat} 
-                      longitude={listing.location.coordinates.lng}
-                      city={listing.location.city} 
-                    />
-                  )}
-                </CardContent>
-              </Card>
+              <SafetyMetrics 
+                latitude={listing.location.coordinates.lat} 
+                longitude={listing.location.coordinates.lng}
+                city={listing.location.city}
+                onOverallScoreCalculated={setOverallSafetyScore}
+              />
             </div>
 
             {/* Community Opinions Section */}

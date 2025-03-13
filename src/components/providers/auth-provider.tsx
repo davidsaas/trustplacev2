@@ -14,6 +14,7 @@ interface AuthContextType {
   userDetails: UserDetails;
   isPremium: boolean;
   loading: boolean;
+  ready: boolean;
   error: string | null;
   signIn: (email: string, password: string, redirectTo?: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
@@ -28,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userDetails, setUserDetails] = useState<UserDetails>(null);
   const [loading, setLoading] = useState(true);
+  const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -84,14 +86,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Initialize auth state
   useEffect(() => {
+    let mounted = true;
+    
     const initialize = async () => {
       try {
         // Get initial session
         const { data: { session } } = await supabase.auth.getSession();
         
+        if (!mounted) return;
+        
         if (session?.user) {
           setUser(session.user);
           const details = await fetchUserDetails(session.user.id);
+          if (!mounted) return;
           setUserDetails(details);
           
           // Check if we're on a public-only route
@@ -113,7 +120,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error("Error during auth initialization:", error);
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          setReady(true);
+        }
       }
     };
 
@@ -122,9 +132,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return;
+        
         if (session?.user) {
           setUser(session.user);
           const details = await fetchUserDetails(session.user.id);
+          if (!mounted) return;
           setUserDetails(details);
           
           // Handle auth events
@@ -152,6 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, [router]);
@@ -265,6 +279,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userDetails,
     isPremium,
     loading,
+    ready,
     error,
     signIn,
     signUp,
@@ -272,6 +287,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signInWithGoogle,
     refreshUserDetails,
   };
+
+  if (!ready) {
+    return null;
+  }
 
   return (
     <AuthContext.Provider value={value}>

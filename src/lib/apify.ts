@@ -121,6 +121,14 @@ export function calculateSafetyScore(listing: ApifyListing): number {
   return Math.min(Math.max(Math.round(score), 0), maxScore);
 }
 
+export function getSafetyRiskCategory(safetyScore: number): 'Very Low Risk' | 'Low Risk' | 'Moderate Risk' | 'High Risk' | 'Very High Risk' {
+  if (safetyScore >= 80) return 'Very Low Risk';
+  if (safetyScore >= 60) return 'Low Risk';
+  if (safetyScore >= 40) return 'Moderate Risk';
+  if (safetyScore >= 20) return 'High Risk';
+  return 'Very High Risk';
+}
+
 export function findSaferAlternatives(
   currentListing: ApifyListing,
   allListings: ApifyListing[],

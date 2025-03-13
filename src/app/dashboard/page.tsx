@@ -1,16 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { supabase } from "@/lib/supabase";
-import { fetchLAListings, ApifyListing, normalizeAirbnbUrl } from "@/lib/apify";
+import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Shield, MapPin, Star, ArrowRight, AlertTriangle, Sparkles } from "lucide-react";
+import { Sparkles, AlertTriangle, ArrowRight } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { fetchLAListings, ApifyListing, normalizeAirbnbUrl } from "@/lib/apify";
 
 export default function Dashboard() {
   const [url, setUrl] = useState("");
@@ -40,7 +38,6 @@ export default function Dashboard() {
     setError(null);
 
     try {
-      // Basic URL validation
       if (!url) {
         throw new Error("Please enter a listing URL");
       }
@@ -51,10 +48,7 @@ export default function Dashboard() {
       }
 
       if (validation.type === 'airbnb') {
-        // Normalize the input URL for Airbnb
         const normalizedUrl = normalizeAirbnbUrl(url);
-
-        // Fetch LA listings and check if the URL exists
         const { success, data: listings, error: fetchError } = await fetchLAListings();
         
         if (!success || !listings) {
@@ -69,13 +63,9 @@ export default function Dashboard() {
           throw new Error("This tool only supports listings in Los Angeles. The provided listing was not found in our LA dataset.");
         }
 
-        // If we get here, the listing exists in our LA dataset
-        const encodedUrl = encodeURIComponent(normalizedUrl);
-        router.push(`/report?url=${encodedUrl}&type=airbnb`);
+        router.push(`/report?url=${encodeURIComponent(normalizedUrl)}&type=airbnb`);
       } else {
-        // Handle Booking.com URL
-        const encodedUrl = encodeURIComponent(url);
-        router.push(`/report?url=${encodedUrl}&type=booking`);
+        router.push(`/report?url=${encodeURIComponent(url)}&type=booking`);
       }
     } catch (error: any) {
       setError(error.message || "An error occurred while processing your request");
@@ -84,101 +74,72 @@ export default function Dashboard() {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    // Redirect is handled in the auth provider
-  };
-
   return (
-    <div className="min-h-screen">
-      <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Safety Report Dashboard</h1>
+    <div className="min-h-screen bg-gradient-to-b from-background to-background/80">
+      <main className="container mx-auto px-4 py-16">
+        <div className="max-w-3xl mx-auto text-center mb-12">
+          <h1 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
+            Verify Your Stay's Safety
+          </h1>
+          <p className="text-lg text-muted-foreground mb-8">
+            Enter your Airbnb or Booking.com listing URL to get instant safety insights
+          </p>
 
-        {!isPremium && (
-          <div className="mb-8 p-4 border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-sm">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-blue-100 p-2 rounded-full">
-                  <Sparkles className="h-6 w-6 text-blue-600" />
+          <Card className="bg-background/50 backdrop-blur-sm border-muted/50">
+            <CardContent className="pt-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="flex gap-3">
+                  <Input
+                    type="text"
+                    placeholder="Paste your listing URL here..."
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    required
+                    className="h-12 bg-background/50 text-lg"
+                  />
+                  <Button 
+                    type="submit" 
+                    className="h-12 px-6 bg-brand hover:bg-brand/90 text-white"
+                    disabled={loading}
+                  >
+                    {loading ? "Analyzing..." : "Check Safety"}
+                  </Button>
                 </div>
-                <div>
-                  <h3 className="font-medium text-blue-900">Upgrade to Premium</h3>
-                  <p className="text-sm text-blue-600">Get detailed safety metrics, unlimited reports, and more.</p>
-                </div>
-              </div>
-              <Button 
-                onClick={() => router.push('/premium')}
-                className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap flex items-center gap-2"
-              >
-                Upgrade Now
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
-
-        <Card className="mb-8 glass">
-          <CardContent className="pt-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="url">Listing URL</Label>
-                <Input
-                  id="url"
-                  type="text"
-                  placeholder="Enter Airbnb or Booking.com URL..."
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  required
-                  className="bg-background/50"
-                />
-              </div>
-              {error && (
-                <Alert variant="destructive" className="bg-safety-red/10 text-safety-red border-safety-red/20">
-                  <AlertTriangle className="h-4 w-4 mr-2" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              <Button 
-                type="submit" 
-                className="w-full bg-brand hover:bg-brand/90 text-white" 
-                disabled={loading}
-              >
-                {loading ? "Analyzing..." : "Generate Safety Report"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <Card className="glass hover:shadow-md transition-all">
-            <CardHeader className="pb-2">
-              <CardTitle>How It Works</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ol className="list-decimal pl-5 space-y-2 text-foreground">
-                <li>Paste an Airbnb or Booking.com listing URL from Los Angeles</li>
-                <li>Our system analyzes the listing's location and reviews</li>
-                <li>We generate safety metrics and a safety score</li>
-                <li>View detailed safety information and safer alternatives</li>
-              </ol>
-            </CardContent>
-          </Card>
-
-          <Card className="glass hover:shadow-md transition-all">
-            <CardHeader className="pb-2">
-              <CardTitle>What You'll Get</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="list-disc pl-5 space-y-2 text-foreground">
-                <li>Overall safety score for the listing</li>
-                <li>Neighborhood safety metrics</li>
-                <li>Safety-related reviews from previous guests</li>
-                <li>Safer alternatives at similar price points</li>
-                <li>Interactive map with safety overlay</li>
-              </ul>
+                {error && (
+                  <Alert variant="destructive" className="bg-safety-red/10 text-safety-red border-safety-red/20">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+              </form>
             </CardContent>
           </Card>
         </div>
+
+        {!isPremium && (
+          <div className="max-w-3xl mx-auto">
+            <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50/50 to-indigo-50/50 border border-blue-100/50 backdrop-blur-sm">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-100/50 p-2 rounded-full">
+                    <Sparkles className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <p className="text-sm text-blue-600">
+                    <span className="font-medium">Upgrade to Premium</span> for detailed safety metrics and unlimited reports
+                  </p>
+                </div>
+                <Button 
+                  onClick={() => router.push('/premium')}
+                  variant="ghost"
+                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                >
+                  Learn More
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
