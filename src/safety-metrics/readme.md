@@ -152,5 +152,4 @@ CREATE TABLE safety_metrics (
   description TEXT   -- Dynamic explanation
 );
 ```
-
 ---
