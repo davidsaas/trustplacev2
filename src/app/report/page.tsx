@@ -21,7 +21,7 @@ const MapView = dynamic(() => import("@/components/map-view"), {
     <div className="relative w-full h-full rounded-xl overflow-hidden border border-blue-100 shadow-inner bg-gray-50 animate-pulse" />
   )
 });
-import { ApifyListing, fetchLAListings, calculateSafetyScore, findSaferAlternatives, normalizeAirbnbUrl } from "@/lib/apify";
+import { ApifyListing, fetchLAListings, calculateSafetyScore, findSaferAlternatives, normalizeAirbnbUrl, SaferAlternative } from "@/lib/apify";
 import SafetyInsights from "@/components/SafetyInsights";
 import ReviewTakeaways from "@/components/ReviewTakeaways";
 import LocationVideos from "@/components/LocationVideos";
@@ -49,6 +49,7 @@ function ReportContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [listing, setListing] = useState<ApifyListing | null>(null);
+  const [allListings, setAllListings] = useState<ApifyListing[]>([]);
   const [safetyReviews, setSafetyReviews] = useState<Array<{
     id: string;
     text: string;
@@ -57,7 +58,7 @@ function ReportContent() {
     author: string;
     authorImage?: string;
   }>>([]);
-  const [alternatives, setAlternatives] = useState<ApifyListing[]>([]);
+  const [alternatives, setAlternatives] = useState<SaferAlternative[]>([]);
   const [saving, setSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [heartAnimation, setHeartAnimation] = useState(false);
@@ -65,6 +66,8 @@ function ReportContent() {
   const [showSafetyInsights, setShowSafetyInsights] = useState(false);
   const [showReviews, setShowReviews] = useState(false);
   const [overallSafetyScore, setOverallSafetyScore] = useState<number>(0);
+  const [listingSafetyScores, setListingSafetyScores] = useState<Record<string, number>>({});
+  const [currentCalculatingUrl, setCurrentCalculatingUrl] = useState<string | null>(null);
 
   // Refs for each section
   const sectionRefs = {
@@ -83,6 +86,50 @@ function ReportContent() {
     router.push(`/report?url=${encodeURIComponent(url)}`);
   };
 
+  // Function to update a listing's safety score
+  const updateListingSafetyScore = (url: string, score: number) => {
+    setListingSafetyScores(prev => ({
+      ...prev,
+      [url]: score
+    }));
+    // Clear current calculating URL after score is set
+    setCurrentCalculatingUrl(null);
+  };
+
+  // Function to get the next URL to calculate
+  const getNextUrlToCalculate = () => {
+    if (!listing) return null;
+    
+    // If main listing score not calculated yet, do it first
+    if (!listingSafetyScores[listing.url]) {
+      return listing.url;
+    }
+    
+    // Then check alternatives
+    const alternativeUrl = alternatives.find(alt => !listingSafetyScores[alt.url])?.url;
+    if (alternativeUrl) {
+      return alternativeUrl;
+    }
+    
+    // Finally check nearby listings
+    const nearbyUrl = allListings.find(l => !listingSafetyScores[l.url])?.url;
+    if (nearbyUrl) {
+      return nearbyUrl;
+    }
+    
+    return null;
+  };
+
+  // Effect to manage safety score calculations
+  useEffect(() => {
+    if (isLoading || !listing || currentCalculatingUrl) return;
+    
+    const nextUrl = getNextUrlToCalculate();
+    if (nextUrl) {
+      setCurrentCalculatingUrl(nextUrl);
+    }
+  }, [isLoading, listing, currentCalculatingUrl, listingSafetyScores, alternatives, allListings]);
+
   // Memoize the map component to prevent flickering on scroll
   const mobileMapComponent = useMemo(() => {
     if (!listing || !listing.location.coordinates) return null;
@@ -90,20 +137,31 @@ function ReportContent() {
       <MapView
         mainLocation={{
           location: `${listing.location.city}, ${listing.location.state}`,
-          safetyScore: calculateSafetyScore(listing),
+          safetyScore: overallSafetyScore,
           coordinates: [listing.location.coordinates.lng, listing.location.coordinates.lat],
           url: listing.url
         }}
         alternativeLocations={alternatives.map(alt => ({
           location: `${alt.location.city}, ${alt.location.state}`,
-          safetyScore: calculateSafetyScore(alt),
+          safetyScore: listingSafetyScores[alt.url] || 0,
           coordinates: [alt.location.coordinates.lng, alt.location.coordinates.lat],
-          url: alt.url
+          url: alt.url,
+          distanceKm: alt.distanceKm,
+          safetyScoreDiff: alt.safetyScoreDiff,
+          priceMatch: alt.priceMatch,
+          typeMatch: alt.typeMatch
+        }))}
+        allListings={allListings.map(l => ({
+          location: `${l.location.city}, ${l.location.state}`,
+          safetyScore: listingSafetyScores[l.url] || 0,
+          coordinates: [l.location.coordinates.lng, l.location.coordinates.lat],
+          url: l.url,
+          price: l.price?.amount || l.pricing?.rate?.amount
         }))}
         onLocationClick={navigateToListing}
       />
     );
-  }, [listing, alternatives]);
+  }, [listing, alternatives, allListings, overallSafetyScore, listingSafetyScores]);
 
   // Memoize the desktop map component to prevent flickering on scroll
   const desktopMapComponent = useMemo(() => {
@@ -112,20 +170,31 @@ function ReportContent() {
       <MapView
         mainLocation={{
           location: `${listing.location.city}, ${listing.location.state}`,
-          safetyScore: calculateSafetyScore(listing),
+          safetyScore: overallSafetyScore,
           coordinates: [listing.location.coordinates.lng, listing.location.coordinates.lat],
           url: listing.url
         }}
         alternativeLocations={alternatives.map(alt => ({
           location: `${alt.location.city}, ${alt.location.state}`,
-          safetyScore: calculateSafetyScore(alt),
+          safetyScore: listingSafetyScores[alt.url] || 0,
           coordinates: [alt.location.coordinates.lng, alt.location.coordinates.lat],
-          url: alt.url
+          url: alt.url,
+          distanceKm: alt.distanceKm,
+          safetyScoreDiff: alt.safetyScoreDiff,
+          priceMatch: alt.priceMatch,
+          typeMatch: alt.typeMatch
+        }))}
+        allListings={allListings.map(l => ({
+          location: `${l.location.city}, ${l.location.state}`,
+          safetyScore: listingSafetyScores[l.url] || 0,
+          coordinates: [l.location.coordinates.lng, l.location.coordinates.lat],
+          url: l.url,
+          price: l.price?.amount || l.pricing?.rate?.amount
         }))}
         onLocationClick={navigateToListing}
       />
     );
-  }, [listing, alternatives]);
+  }, [listing, alternatives, allListings, overallSafetyScore, listingSafetyScores]);
 
   // Wait for auth to be ready before initializing
   useEffect(() => {
@@ -145,8 +214,8 @@ function ReportContent() {
           throw new Error(error || 'Failed to fetch listings');
         }
 
-        // Log the first listing to see its structure
-        console.log('First listing structure:', JSON.stringify(listings[0], null, 2));
+        // Store all listings
+        setAllListings(listings);
 
         // Normalize the URL we're looking for
         const normalizedSearchUrl = normalizeAirbnbUrl(url);
@@ -564,12 +633,30 @@ function ReportContent() {
 
             {/* Safety Metrics Section */}
             <div id="safety" ref={sectionRefs.safety}>
-              <SafetyMetrics 
-                latitude={listing.location.coordinates.lat} 
-                longitude={listing.location.coordinates.lng}
-                city={listing.location.city}
-                onOverallScoreCalculated={setOverallSafetyScore}
-              />
+              {currentCalculatingUrl && (() => {
+                const targetListing = currentCalculatingUrl === listing?.url 
+                  ? listing 
+                  : alternatives.find(alt => alt.url === currentCalculatingUrl) 
+                    || allListings.find(l => l.url === currentCalculatingUrl);
+                
+                if (!targetListing) return null;
+                
+                return (
+                  <div className={currentCalculatingUrl === listing?.url ? '' : 'hidden'}>
+                    <SafetyMetrics 
+                      latitude={targetListing.location.coordinates.lat} 
+                      longitude={targetListing.location.coordinates.lng}
+                      city={targetListing.location.city}
+                      onOverallScoreCalculated={(score) => {
+                        if (currentCalculatingUrl === listing?.url) {
+                          setOverallSafetyScore(score);
+                        }
+                        updateListingSafetyScore(currentCalculatingUrl, score);
+                      }}
+                    />
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Community Opinions Section */}
@@ -670,45 +757,100 @@ function ReportContent() {
                     <CardTitle className="text-gray-900">Safer Alternatives</CardTitle>
                   </div>
                   <CardDescription className="text-gray-500">
-                    Similar properties with better safety scores
+                    Similar properties with better safety scores within 5km
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-6">
                   <div className="grid grid-cols-1 gap-4">
-                    {alternatives.slice(0, 3).map((alt) => (
-                      <div 
-                        key={alt.id} 
-                        className="group bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow cursor-pointer" 
-                        onClick={() => navigateToListing(alt.url)}
-                      >
-                        <div className="flex">
-                          <div className="w-1/3 relative">
-                            <img 
-                              src={alt.photos?.[0]?.large || "/images/placeholder-home.jpg"} 
-                              alt={alt.title}
-                              className="absolute inset-0 w-full h-full object-cover"
-                            />
-                          </div>
-                          <div className="w-2/3 p-4">
-                            <div className="flex justify-between items-start gap-4">
-                              <div>
-                                <h4 className="font-medium text-gray-900 line-clamp-1 group-hover:text-gray-700 transition-colors">
-                                  {alt.title}
-                                </h4>
-                                <p className="text-sm text-gray-500 flex items-center gap-1.5 mt-1">
-                                  <MapPin className="h-3.5 w-3.5" />
-                                  {alt.location.city}, {alt.location.state}
-                                </p>
-                                <p className="text-sm font-medium text-gray-900 mt-2">
-                                  {alt.price?.amount ? `$${alt.price.amount}` : 'Price not available'}
-                                  <span className="text-gray-500 font-normal"> per night</span>
-                                </p>
+                    {alternatives.length > 0 ? (
+                      alternatives.map((alt) => (
+                        <div 
+                          key={alt.id} 
+                          className="group bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow cursor-pointer" 
+                          onClick={() => navigateToListing(alt.url)}
+                        >
+                          <div className="flex">
+                            <div className="w-1/3 relative">
+                              <div className="absolute inset-0">
+                                <img 
+                                  src={alt.photos?.[0]?.large || "/images/placeholder-home.jpg"} 
+                                  alt={alt.title}
+                                  className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent" />
+                              </div>
+                            </div>
+                            <div className="w-2/3 p-4">
+                              <div className="flex flex-col gap-2">
+                                <div>
+                                  <h4 className="font-medium text-gray-900 line-clamp-1 group-hover:text-gray-700 transition-colors">
+                                    {alt.title}
+                                  </h4>
+                                  <p className="text-sm text-gray-500 flex items-center gap-1.5 mt-1">
+                                    <MapPin className="h-3.5 w-3.5" />
+                                    {alt.distanceKm}km away
+                                  </p>
+                                </div>
+                                
+                                <div className="flex flex-wrap gap-2">
+                                  {/* Safety Score Badge */}
+                                  <Badge 
+                                    variant="outline" 
+                                    className="bg-green-50 text-green-700 border-green-200"
+                                  >
+                                    +{alt.safetyScoreDiff.toFixed(0)} Safety Score
+                                  </Badge>
+                                  
+                                  {/* Price Match Badge */}
+                                  <Badge 
+                                    variant="outline" 
+                                    className={`
+                                      ${alt.priceMatch >= 90 
+                                        ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                                        : 'bg-yellow-50 text-yellow-700 border-yellow-200'}
+                                    `}
+                                  >
+                                    {alt.priceMatch}% Price Match
+                                  </Badge>
+                                  
+                                  {/* Type Match Badge */}
+                                  {alt.typeMatch && (
+                                    <Badge 
+                                      variant="outline" 
+                                      className="bg-purple-50 text-purple-700 border-purple-200"
+                                    >
+                                      Similar Type
+                                    </Badge>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center justify-between mt-2">
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {alt.price?.amount ? `$${alt.price.amount}` : 'Price not available'}
+                                    <span className="text-gray-500 font-normal"> per night</span>
+                                  </p>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                  >
+                                    View Details →
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <StarIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Safer Alternatives Found</h3>
+                        <p className="text-gray-500 max-w-md mx-auto">
+                          We couldn't find any properties with better safety scores in this area. Try expanding your search radius or adjusting your criteria.
+                        </p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </CardContent>
               </Card>

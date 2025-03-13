@@ -129,51 +129,137 @@ export function getSafetyRiskCategory(safetyScore: number): 'Very Low Risk' | 'L
   return 'Very High Risk';
 }
 
+// Helper function to calculate distance between two coordinates using Haversine formula
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+// Helper function to determine accommodation type from title and description
+function getAccommodationType(listing: ApifyListing): string {
+  const title = listing.title?.toLowerCase() || '';
+  const description = listing.description?.toLowerCase() || '';
+  const text = `${title} ${description}`;
+  
+  if (text.includes('entire home') || text.includes('house')) return 'house';
+  if (text.includes('apartment') || text.includes('condo')) return 'apartment';
+  if (text.includes('private room')) return 'private room';
+  if (text.includes('shared room')) return 'shared room';
+  if (text.includes('studio')) return 'studio';
+  return 'other';
+}
+
+export interface SaferAlternative extends ApifyListing {
+  distanceKm: number;
+  safetyScoreDiff: number;
+  priceMatch: number; // percentage match (0-100)
+  typeMatch: boolean;
+}
+
 export function findSaferAlternatives(
   currentListing: ApifyListing,
   allListings: ApifyListing[],
-  maxPriceDiff = 50,
-  limit = 3
-): ApifyListing[] {
-  const currentPrice = currentListing.pricing?.rate?.amount || 0;
+  options = {
+    maxDistanceKm: 5,
+    minSafetyScoreDiff: 5,
+    priceRangePercent: 20,
+    limit: 5
+  }
+): SaferAlternative[] {
+  const currentPrice = currentListing.price?.amount || currentListing.pricing?.rate?.amount || 0;
   const currentSafetyScore = calculateSafetyScore(currentListing);
-  const currentCity = currentListing.location.city.toLowerCase();
+  const currentType = getAccommodationType(currentListing);
+  const currentCoords = currentListing.location.coordinates;
 
-  // Debug log for prices
-  console.log('Current listing price:', currentPrice);
-  console.log('All listings prices sample:', allListings.slice(0, 5).map(l => ({
-    id: l.id,
-    price: l.pricing?.rate?.amount,
-    hasPrice: !!l.pricing?.rate?.amount
-  })));
+  // Early return if no valid coordinates
+  if (!currentCoords?.lat || !currentCoords?.lng) {
+    console.warn('Current listing missing coordinates');
+    return [];
+  }
 
-  return allListings
+  // Calculate price range
+  const minPrice = currentPrice * (1 - options.priceRangePercent / 100);
+  const maxPrice = currentPrice * (1 + options.priceRangePercent / 100);
+
+  const alternatives = allListings
     .filter(listing => {
+      // Skip if same listing
       if (listing.id === currentListing.id) return false;
-      
-      // Must be in same city
-      if (listing.location.city.toLowerCase() !== currentCity) return false;
-      
-      // Calculate safety score once
-      const listingSafetyScore = calculateSafetyScore(listing);
-      if (listingSafetyScore <= currentSafetyScore) return false;
 
-      // Price comparison only if both prices are available
-      const listingPrice = listing.pricing?.rate?.amount || 0;
-      if (currentPrice === 0 || listingPrice === 0) return true;
-      return Math.abs(listingPrice - currentPrice) <= maxPriceDiff;
+      // Skip if no coordinates
+      if (!listing.location.coordinates?.lat || !listing.location.coordinates?.lng) return false;
+
+      // Calculate key metrics
+      const distance = calculateDistance(
+        currentCoords.lat,
+        currentCoords.lng,
+        listing.location.coordinates.lat,
+        listing.location.coordinates.lng
+      );
+
+      // Skip if too far
+      if (distance > options.maxDistanceKm) return false;
+
+      const safetyScore = calculateSafetyScore(listing);
+      const safetyScoreDiff = safetyScore - currentSafetyScore;
+
+      // Must have better safety score
+      if (safetyScoreDiff < options.minSafetyScoreDiff) return false;
+
+      // Check price range if price available
+      const listingPrice = listing.price?.amount || listing.pricing?.rate?.amount || 0;
+      if (currentPrice > 0 && listingPrice > 0) {
+        if (listingPrice < minPrice || listingPrice > maxPrice) return false;
+      }
+
+      return true;
+    })
+    .map(listing => {
+      const listingPrice = listing.price?.amount || listing.pricing?.rate?.amount || 0;
+      const distance = calculateDistance(
+        currentCoords.lat,
+        currentCoords.lng,
+        listing.location.coordinates.lat,
+        listing.location.coordinates.lng
+      );
+      
+      // Calculate price match percentage
+      let priceMatch = 100;
+      if (currentPrice > 0 && listingPrice > 0) {
+        const priceDiff = Math.abs(currentPrice - listingPrice);
+        priceMatch = Math.max(0, 100 - (priceDiff / currentPrice * 100));
+      }
+
+      return {
+        ...listing,
+        distanceKm: Number(distance.toFixed(1)),
+        safetyScoreDiff: calculateSafetyScore(listing) - currentSafetyScore,
+        priceMatch: Math.round(priceMatch),
+        typeMatch: getAccommodationType(listing) === currentType
+      };
     })
     .sort((a, b) => {
-      // First sort by safety score
-      const scoreDiff = calculateSafetyScore(b) - calculateSafetyScore(a);
-      if (scoreDiff !== 0) return scoreDiff;
+      // Primary sort by safety score difference
+      const safetyDiff = b.safetyScoreDiff - a.safetyScoreDiff;
+      if (Math.abs(safetyDiff) > 5) return safetyDiff;
       
-      // Then by price similarity to current listing
-      const aPriceDiff = Math.abs((a.pricing?.rate?.amount || 0) - currentPrice);
-      const bPriceDiff = Math.abs((b.pricing?.rate?.amount || 0) - currentPrice);
-      return aPriceDiff - bPriceDiff;
+      // Secondary sort by price match if safety scores are close
+      const priceMatchDiff = b.priceMatch - a.priceMatch;
+      if (Math.abs(priceMatchDiff) > 10) return priceMatchDiff;
+      
+      // Finally sort by distance if other factors are similar
+      return a.distanceKm - b.distanceKm;
     })
-    .slice(0, limit);
+    .slice(0, options.limit);
+
+  return alternatives;
 }
 
 export function normalizeAirbnbUrl(url: string): string {
