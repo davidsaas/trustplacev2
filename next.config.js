@@ -22,9 +22,6 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   output: 'standalone',
-  experimental: {
-    serverExternalPackages: ['@prisma/client', 'bcrypt'],
-  },
   // Configure for flexible rendering
   serverRuntimeConfig: {
     // Will only be available on the server side
