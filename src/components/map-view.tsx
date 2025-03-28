@@ -21,17 +21,13 @@ interface EnhancedLocation extends Location {
   safetyScoreDiff?: number;
   priceMatch?: number;
   typeMatch?: boolean;
-}
-
-interface BasicLocation extends Location {
-  price?: number;
-  image?: string; // Add image property for hover card
+  isSaferAlternative?: boolean;
 }
 
 interface MapViewProps {
   mainLocation: Location;
   alternativeLocations?: EnhancedLocation[];
-  allListings?: BasicLocation[];
+  allListings?: Location[];
   onLocationClick?: (url: string) => void;
 }
 
@@ -41,10 +37,9 @@ export default function MapView({ mainLocation, alternativeLocations = [], allLi
   
   // Determine the color based on safety score
   const getSafetyColor = (score: number) => {
-    if (score >= 80) return "#22c55e"; // Green-500 (matching overview)
-    if (score >= 60) return "#3b82f6"; // Blue-500 (matching overview)
-    if (score >= 40) return "#eab308"; // Yellow-500 (matching overview)
-    return "#ef4444"; // Red-500 (matching overview)
+    if (score >= 80) return "#10b981"; // Emerald-500
+    if (score >= 60) return "#f59e0b"; // Amber-500
+    return "#f43f5e"; // Rose-500
   };
 
   useEffect(() => {
@@ -62,7 +57,7 @@ export default function MapView({ mainLocation, alternativeLocations = [], allLi
         container: mapContainer.current,
         style: 'mapbox://styles/mapbox/streets-v12',
         center: mainLocation.coordinates,
-        zoom: 9,
+        zoom: 12, // Increased zoom level for better visibility
       });
       
       // Add premium controls
@@ -72,400 +67,220 @@ export default function MapView({ mainLocation, alternativeLocations = [], allLi
         visualizePitch: true
       }), 'bottom-right');
 
-      // Function to add a basic listing marker
-      const addBasicMarker = (location: BasicLocation) => {
-        const popup = new mapboxgl.Popup({ 
-          offset: 25, 
-          closeButton: false,
-          className: 'custom-popup',
-          maxWidth: '300px'
-        })
-          .setHTML(`
-            <div style="
-              font-family: system-ui, sans-serif;
-              padding: 12px;
-              border-radius: 8px;
-              background: rgba(255, 255, 255, 0.98);
-              backdrop-filter: blur(8px);
-              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-              border: 1px solid rgba(0, 0, 0, 0.05);
-            ">
-              ${location.image ? `
-                <div style="
-                  width: 100%;
-                  height: 140px;
-                  border-radius: 6px;
-                  overflow: hidden;
-                  margin-bottom: 12px;
-                ">
-                  <img 
-                    src="${location.image}" 
-                    alt="${location.location}"
-                    style="
-                      width: 100%;
-                      height: 100%;
-                      object-fit: cover;
-                    "
-                  />
-                </div>
-              ` : ''}
-              
-              <strong style="
-                display: block;
-                margin-bottom: 8px;
-                font-size: 14px;
-                color: #1f2937;
-              ">${location.location}</strong>
-              
-              <div style="
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-bottom: 8px;
-              ">
-                <div style="
-                  display: flex;
-                  align-items: center;
-                  gap: 8px;
-                ">
-                  <div style="
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    width: 32px;
-                    height: 32px;
-                    border-radius: 50%;
-                    background: ${getSafetyColor(location.safetyScore)}15;
-                    color: ${getSafetyColor(location.safetyScore)};
-                    font-weight: 600;
-                    font-size: 13px;
-                  ">
-                    ${location.safetyScore}
-                  </div>
-                  <div style="
-                    font-size: 13px;
-                    color: ${getSafetyColor(location.safetyScore)};
-                    font-weight: 500;
-                  ">
-                    Safety Score
-                  </div>
-                </div>
-                
-                ${location.price ? `
-                  <div style="
-                    font-size: 14px;
-                    font-weight: 600;
-                    color: #1f2937;
-                  ">
-                    $${location.price}
-                    <span style="
-                      font-size: 12px;
-                      font-weight: 400;
-                      color: #6b7280;
-                    ">/night</span>
-                  </div>
-                ` : ''}
-              </div>
-
-              ${location.url ? `
-                <button style="
-                  width: 100%;
-                  padding: 8px;
-                  background: #f3f4f6;
-                  border: none;
-                  border-radius: 6px;
-                  color: #2563eb;
-                  font-size: 13px;
-                  font-weight: 500;
-                  cursor: pointer;
-                  transition: all 0.2s;
-                  text-align: center;
-                  margin-top: 4px;
-                ">View details →</button>
-              ` : ''}
-            </div>
-          `);
-
-        const markerElement = document.createElement('div');
-        markerElement.innerHTML = `
-          <div class="marker-container" style="
-            position: relative;
-            width: 24px;
-            height: 24px;
-            cursor: ${location.url ? 'pointer' : 'default'};
-          ">
-            <div class="marker-score" style="
-              position: absolute;
-              inset: 0;
-              border-radius: 50%;
-              background: ${getSafetyColor(location.safetyScore)};
-              color: white;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: 11px;
-              font-weight: 600;
-              font-family: system-ui, sans-serif;
-              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-              transition: all 0.2s ease;
-            ">
-              ${Math.round(location.safetyScore)}
-            </div>
-          </div>
-        `;
-
-        const marker = new mapboxgl.Marker({
-          element: markerElement,
-          anchor: 'center'
-        })
-          .setLngLat(location.coordinates)
-          .setPopup(popup)
-          .addTo(map.current!);
-
-        if (location.url && onLocationClick) {
-          const markerDiv = markerElement.querySelector('.marker-container') as HTMLDivElement | null;
-          const scoreDiv = markerElement.querySelector('.marker-score') as HTMLDivElement | null;
-          
-          if (markerDiv && scoreDiv) {
-            markerDiv.addEventListener('mouseenter', () => {
-              scoreDiv.style.transform = 'scale(1.15)';
-              scoreDiv.style.opacity = '0.9';
-              if (map.current) {
-                const popup = marker.getPopup();
-                if (popup) {
-                  popup.addTo(map.current);
-                }
-              }
-            });
-            
-            markerDiv.addEventListener('mouseleave', () => {
-              scoreDiv.style.transform = 'scale(1)';
-              scoreDiv.style.opacity = '1';
-              const popup = marker.getPopup();
-              if (popup) {
-                popup.remove();
-              }
-            });
-            
-            markerDiv.addEventListener('click', () => {
-              onLocationClick(location.url!);
-            });
-          }
-        }
-
-        return marker;
-      };
-
-      // Function to add enhanced location markers (main location and alternatives)
-      const addLocationMarker = (location: Location | EnhancedLocation, isMain: boolean = false) => {
-        // Create a safer alternative label if it's not the main location
-        if (!isMain) {
-          const el = document.createElement('div');
-          el.className = 'safer-alternative-label';
-          el.innerHTML = `
-            <div style="
-              background-color: #10b981;
-              color: white;
-              padding: 6px 12px;
-              text-transform: uppercase;
-              border-radius: 20px;
-              font-size: 10px;
-              font-weight: 600;
-              white-space: nowrap;
-              transform: translateY(-20px);
-              text-align: center;
-              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-              backdrop-filter: blur(4px);
-              border: 1px solid rgba(255, 255, 255, 0.2);
-            ">
-              Safer Alternative
-            </div>
-          `;
-          new mapboxgl.Marker({
-            element: el,
-            anchor: 'bottom',
-          })
-            .setLngLat(location.coordinates)
-            .addTo(map.current!);
-        }
-
-        const popup = new mapboxgl.Popup({ 
-          offset: 25, 
-          closeButton: false,
-          className: 'custom-popup',
-          maxWidth: '300px'
-        })
-          .setHTML(`
-            <div style="
-              font-family: system-ui, sans-serif;
-              padding: 12px;
-              border-radius: 8px;
-              background: rgba(255, 255, 255, 0.95);
-              backdrop-filter: blur(8px);
-            ">
-              <strong style="
-                display: block;
-                margin-bottom: 8px;
-                font-size: 14px;
-                color: #1f2937;
-              ">${location.location}</strong>
-              
-              <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;">
-                ${!isMain && 'safetyScoreDiff' in location && location.safetyScoreDiff ? `
-                  <div style="
-                    display: inline-block;
-                    padding: 4px 8px;
-                    border-radius: 12px;
-                    background: #dcfce7;
-                    color: #15803d;
-                    font-weight: 600;
-                    font-size: 12px;
-                  ">
-                    +${location.safetyScoreDiff.toFixed(0)} Safety Score
-                  </div>
-                ` : ''}
-                
-                ${!isMain && 'distanceKm' in location && location.distanceKm ? `
-                  <div style="
-                    display: inline-block;
-                    padding: 4px 8px;
-                    border-radius: 12px;
-                    background: #dbeafe;
-                    color: #1d4ed8;
-                    font-weight: 600;
-                    font-size: 12px;
-                  ">
-                    ${location.distanceKm}km away
-                  </div>
-                ` : ''}
-                
-                ${!isMain && 'priceMatch' in location && location.priceMatch ? `
-                  <div style="
-                    display: inline-block;
-                    padding: 4px 8px;
-                    border-radius: 12px;
-                    background: ${location.priceMatch >= 90 ? '#dbeafe' : '#fef9c3'};
-                    color: ${location.priceMatch >= 90 ? '#1d4ed8' : '#a16207'};
-                    font-weight: 600;
-                    font-size: 12px;
-                  ">
-                    ${location.priceMatch}% Price Match
-                  </div>
-                ` : ''}
-                
-                ${!isMain && 'typeMatch' in location && location.typeMatch ? `
-                  <div style="
-                    display: inline-block;
-                    padding: 4px 8px;
-                    border-radius: 12px;
-                    background: #f3e8ff;
-                    color: #7e22ce;
-                    font-weight: 600;
-                    font-size: 12px;
-                  ">
-                    Similar Type
-                  </div>
-                ` : ''}
-              </div>
-
-              ${location.url ? `
-                <div style="
-                  margin-top: 8px;
-                  font-size: 13px;
-                  color: #2563eb;
-                  cursor: pointer;
-                  font-weight: 500;
-                ">View details →</div>
-              ` : ''}
-            </div>
-          `);
-
-        const markerElement = document.createElement('div');
-        markerElement.innerHTML = `
-          <div style="
-            width: ${isMain ? '40px' : '24px'};
-            height: ${isMain ? '40px' : '24px'};
-            background: ${isMain ? getSafetyColor(location.safetyScore) : getSafetyColor(location.safetyScore)};
-            border-radius: 50%;
-            border: ${isMain ? '3px solid white' : '2px solid white'};
-            box-shadow: ${isMain ? 
-              '0 4px 12px rgba(0, 0, 0, 0.2)' : 
-              '0 2px 4px rgba(0, 0, 0, 0.15)'};
-            cursor: ${location.url ? 'pointer' : 'default'};
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: ${isMain ? '16px' : '11px'};
-            font-weight: 600;
-            font-family: system-ui, sans-serif;
-            ${isMain ? `
-              position: relative;
-              &::after {
-                content: '';
-                position: absolute;
-                width: 48px;
-                height: 48px;
-                border-radius: 50%;
-                border: 2px solid ${getSafetyColor(location.safetyScore)};
-                animation: pulse 2s infinite;
-              }
-            ` : ''}
-          ">
-            ${Math.round(location.safetyScore)}
-          </div>
-          ${isMain ? `
-            <style>
-              @keyframes pulse {
-                0% {
-                  transform: scale(1);
-                  opacity: 0.6;
-                }
-                100% {
-                  transform: scale(1.5);
-                  opacity: 0;
-                }
-              }
-            </style>
-          ` : ''}
-        `;
-
-        const marker = new mapboxgl.Marker({
-          element: markerElement,
-          anchor: 'center'
-        })
-          .setLngLat(location.coordinates)
-          .setPopup(popup)
-          .addTo(map.current!);
-
-        if (location.url && onLocationClick) {
-          const markerDiv = markerElement.querySelector('div');
-          if (markerDiv) {
-            markerElement.addEventListener('mouseenter', () => {
-              markerDiv.style.transform = 'scale(1.1)';
-              if (!isMain) {
-                markerDiv.style.background = getSafetyColor(location.safetyScore);
-              }
-            });
-            markerElement.addEventListener('mouseleave', () => {
-              markerDiv.style.transform = 'scale(1)';
-              if (!isMain) {
-                markerDiv.style.background = `${getSafetyColor(location.safetyScore)}CC`;
-              }
-            });
-            markerElement.addEventListener('click', () => {
-              onLocationClick(location.url!);
-            });
-          }
-        }
-
-        return marker;
-      };
-
       // Wait for the map to load before adding markers
       map.current.on('load', () => {
         if (!map.current) return;
+
+        // Function to add a location marker with popup for main location and safer alternatives
+        const addLocationMarker = (location: Location | EnhancedLocation, isMain: boolean = false) => {
+          // Create a safer alternative label if it's not the main location
+          if (!isMain) {
+            const el = document.createElement('div');
+            el.className = 'safer-alternative-label';
+            el.innerHTML = `
+              <div style="
+                background-color: #10b981;
+                color: white;
+                padding: 6px 12px;
+                text-transform: uppercase;
+                border-radius: 20px;
+                font-size: 10px;
+                font-weight: 600;
+                white-space: nowrap;
+                transform: translateY(-20px);
+                text-align: center;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                backdrop-filter: blur(4px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+              ">
+                Safer Alternative
+              </div>
+            `;
+            new mapboxgl.Marker({
+              element: el,
+              anchor: 'bottom',
+            })
+              .setLngLat(location.coordinates)
+              .addTo(map.current!);
+          }
+
+          const popup = new mapboxgl.Popup({ 
+            offset: 25, 
+            closeButton: false,
+            className: 'custom-popup',
+            maxWidth: '300px'
+          })
+            .setHTML(`
+              <div style="
+                font-family: system-ui, sans-serif;
+                padding: 12px;
+                border-radius: 8px;
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(8px);
+              ">
+                <strong style="
+                  display: block;
+                  margin-bottom: 8px;
+                  font-size: 14px;
+                  color: #1f2937;
+                ">${location.location}</strong>
+                
+                <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;">
+                  ${!isMain && 'safetyScoreDiff' in location && location.safetyScoreDiff ? `
+                    <div style="
+                      display: inline-block;
+                      padding: 4px 8px;
+                      border-radius: 12px;
+                      background: #dcfce7;
+                      color: #15803d;
+                      font-weight: 600;
+                      font-size: 12px;
+                    ">
+                      +${location.safetyScoreDiff.toFixed(0)} Safety Score
+                    </div>
+                  ` : ''}
+                  
+                  ${!isMain && 'distanceKm' in location && location.distanceKm ? `
+                    <div style="
+                      display: inline-block;
+                      padding: 4px 8px;
+                      border-radius: 12px;
+                      background: #dbeafe;
+                      color: #1d4ed8;
+                      font-weight: 600;
+                      font-size: 12px;
+                    ">
+                      ${location.distanceKm}km away
+                    </div>
+                  ` : ''}
+                  
+                  ${!isMain && 'priceMatch' in location && location.priceMatch ? `
+                    <div style="
+                      display: inline-block;
+                      padding: 4px 8px;
+                      border-radius: 12px;
+                      background: ${location.priceMatch >= 90 ? '#dbeafe' : '#fef9c3'};
+                      color: ${location.priceMatch >= 90 ? '#1d4ed8' : '#a16207'};
+                      font-weight: 600;
+                      font-size: 12px;
+                    ">
+                      ${location.priceMatch}% Price Match
+                    </div>
+                  ` : ''}
+                  
+                  ${!isMain && 'typeMatch' in location && location.typeMatch ? `
+                    <div style="
+                      display: inline-block;
+                      padding: 4px 8px;
+                      border-radius: 12px;
+                      background: #f3e8ff;
+                      color: #7e22ce;
+                      font-weight: 600;
+                      font-size: 12px;
+                    ">
+                      Similar Type
+                    </div>
+                  ` : ''}
+                </div>
+
+                ${location.url ? `
+                  <div style="
+                    margin-top: 8px;
+                    font-size: 13px;
+                    color: #2563eb;
+                    cursor: pointer;
+                    font-weight: 500;
+                  ">View details →</div>
+                ` : ''}
+              </div>
+            `);
+
+          // Add marker with enhanced styling
+          const markerElement = document.createElement('div');
+          markerElement.innerHTML = `
+            <div style="
+              width: ${isMain ? '40px' : '24px'};
+              height: ${isMain ? '40px' : '24px'};
+              background: ${isMain ? getSafetyColor(location.safetyScore) : `#10b981`};
+              border-radius: 50%;
+              border: ${isMain ? '4px solid white' : '2px solid rgba(255, 255, 255, 0.9)'};
+              box-shadow: ${isMain ? 
+                '0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 4px rgba(255, 255, 255, 0.4)' : 
+                '0 2px 4px rgba(0, 0, 0, 0.1)'};
+              cursor: ${location.url ? 'pointer' : 'default'};
+              transition: all 0.2s ease;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              ${isMain ? `
+                &::after {
+                  content: '';
+                  position: absolute;
+                  width: 48px;
+                  height: 48px;
+                  border-radius: 50%;
+                  border: 2px solid ${getSafetyColor(location.safetyScore)}40;
+                  animation: pulse 2s infinite;
+                }
+              ` : ''}
+            ">
+              ${!isMain ? `
+                <div style="
+                  font-size: 14px;
+                  color: white;
+                  font-weight: bold;
+                  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+                ">↗</div>
+              ` : ''}
+            </div>
+            ${isMain ? `
+              <style>
+                @keyframes pulse {
+                  0% {
+                    transform: scale(1);
+                    opacity: 1;
+                  }
+                  100% {
+                    transform: scale(1.5);
+                    opacity: 0;
+                  }
+                }
+              </style>
+            ` : ''}
+          `;
+
+          const marker = new mapboxgl.Marker({
+            element: markerElement,
+            anchor: 'center'
+          })
+            .setLngLat(location.coordinates)
+            .setPopup(popup)
+            .addTo(map.current!);
+
+          // Add hover and click effects
+          if (location.url && onLocationClick) {
+            const markerDiv = markerElement.querySelector('div');
+            if (markerDiv) {
+              markerElement.addEventListener('mouseenter', () => {
+                markerDiv.style.transform = 'scale(1.1)';
+                if (!isMain) {
+                  markerDiv.style.background = getSafetyColor(location.safetyScore);
+                }
+              });
+              markerElement.addEventListener('mouseleave', () => {
+                markerDiv.style.transform = 'scale(1)';
+                if (!isMain) {
+                  markerDiv.style.background = `${getSafetyColor(location.safetyScore)}CC`;
+                }
+              });
+              markerElement.addEventListener('click', () => {
+                onLocationClick(location.url!);
+              });
+            }
+          }
+
+          return marker;
+        };
 
         // Add 3D building layer
         map.current.addLayer({
@@ -483,55 +298,107 @@ export default function MapView({ mainLocation, alternativeLocations = [], allLi
           }
         });
 
-        // Add all basic listings first (bottom layer)
-        allListings.forEach(location => {
-          addBasicMarker(location);
+        // Calculate bounds to fit all markers
+        const bounds = new mapboxgl.LngLatBounds();
+
+        // Add markers for all listings first (they'll be at the bottom layer)
+        allListings.forEach(listing => {
+          // Skip if this is the main listing or a safer alternative
+          if (listing.coordinates[0] === mainLocation.coordinates[0] && 
+              listing.coordinates[1] === mainLocation.coordinates[1]) return;
+          
+          if (alternativeLocations.some(alt => 
+            alt.coordinates[0] === listing.coordinates[0] && 
+            alt.coordinates[1] === listing.coordinates[1])) return;
+
+          // Create marker for regular listing
+          const el = document.createElement('div');
+          el.innerHTML = `
+            <div style="
+              width: 16px;
+              height: 16px;
+              background: ${getSafetyColor(listing.safetyScore)}80;
+              border-radius: 50%;
+              border: 2px solid white;
+              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+              cursor: pointer;
+              transition: all 0.2s ease;
+            "></div>
+          `;
+
+          // Add popup for regular listing
+          const popup = new mapboxgl.Popup({
+            offset: 25,
+            closeButton: false,
+            maxWidth: '300px'
+          })
+          .setHTML(`
+            <div style="
+              font-family: system-ui, sans-serif;
+              padding: 12px;
+              border-radius: 8px;
+              background: rgba(255, 255, 255, 0.95);
+              backdrop-filter: blur(8px);
+            ">
+              <strong style="
+                display: block;
+                margin-bottom: 8px;
+                font-size: 14px;
+                color: #1f2937;
+              ">${listing.location}</strong>
+              <div style="
+                display: inline-block;
+                padding: 4px 8px;
+                border-radius: 12px;
+                background: ${getSafetyColor(listing.safetyScore)}15;
+                color: ${getSafetyColor(listing.safetyScore)};
+                font-weight: 600;
+                font-size: 12px;
+              ">
+                Safety Score: ${Math.round(listing.safetyScore)}
+              </div>
+            </div>
+          `);
+
+          new mapboxgl.Marker({
+            element: el,
+            anchor: 'center'
+          })
+          .setLngLat(listing.coordinates)
+          .setPopup(popup)
+          .addTo(map.current!);
+
+          bounds.extend(listing.coordinates);
         });
 
-        // Add alternative locations (middle layer)
+        // Add safer alternatives (middle layer)
         alternativeLocations.forEach(location => {
-          addLocationMarker(location);
+          const marker = addLocationMarker(location);
+          bounds.extend(location.coordinates);
         });
 
         // Add main location marker (top layer)
-        addLocationMarker(mainLocation, true);
-
-        // Calculate bounds to fit all markers
-        const bounds = new mapboxgl.LngLatBounds();
-        
-        // Add main location to bounds
+        const mainMarker = addLocationMarker(mainLocation, true);
         bounds.extend(mainLocation.coordinates);
-        
-        // Add alternative locations to bounds
-        alternativeLocations.forEach(location => {
-          bounds.extend(location.coordinates);
-        });
-        
-        // Add all listings to bounds
-        allListings.forEach(location => {
-          bounds.extend(location.coordinates);
-        });
-        
+
         // Fit bounds with padding
         map.current.fitBounds(bounds, {
           padding: { top: 100, bottom: 100, left: 100, right: 100 },
-          maxZoom: 14,
-          duration: 2000,
-          essential: true
+          maxZoom: 14
         });
       });
+
     } catch (error) {
       console.error('Error initializing Mapbox map:', error);
     }
     
-    // Cleanup function
     return () => {
       if (map.current) {
         map.current.remove();
         map.current = null;
       }
     };
-  }, [mainLocation, alternativeLocations, allListings, onLocationClick]); // Dependencies
+  }, [mainLocation, alternativeLocations, allListings, onLocationClick]);
 
   return (
     <div className="relative w-full h-full rounded-xl overflow-hidden border border-blue-100 shadow-inner">
