@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['randomuser.me', 'images.unsplash.com'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -22,9 +21,6 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   output: 'standalone',
-  experimental: {
-    serverExternalPackages: ['@prisma/client', 'bcrypt'],
-  },
   // Configure for flexible rendering
   serverRuntimeConfig: {
     // Will only be available on the server side

@@ -125,10 +125,38 @@ function ReportContent() {
     if (isLoading || !listing || currentCalculatingUrl) return;
     
     const nextUrl = getNextUrlToCalculate();
-    if (nextUrl) {
+    if (nextUrl && !listingSafetyScores[nextUrl]) {
       setCurrentCalculatingUrl(nextUrl);
     }
-  }, [isLoading, listing, currentCalculatingUrl, listingSafetyScores, alternatives, allListings]);
+  }, [isLoading, listing, currentCalculatingUrl, listingSafetyScores]);
+
+  // Separate effect to handle score updates
+  useEffect(() => {
+    if (!listing || !currentCalculatingUrl) return;
+    
+    const calculateScore = async () => {
+      try {
+        // Find the listing object that matches the current URL
+        const targetListing = currentCalculatingUrl === listing.url 
+          ? listing 
+          : [...alternatives, ...allListings].find(l => l.url === currentCalculatingUrl);
+        
+        if (!targetListing) {
+          console.error('Could not find listing for URL:', currentCalculatingUrl);
+          setCurrentCalculatingUrl(null);
+          return;
+        }
+
+        const score = await calculateSafetyScore(targetListing);
+        updateListingSafetyScore(currentCalculatingUrl, score);
+      } catch (error) {
+        console.error('Error calculating safety score:', error);
+        setCurrentCalculatingUrl(null);
+      }
+    };
+
+    calculateScore();
+  }, [currentCalculatingUrl, listing, alternatives, allListings]);
 
   // Memoize the map component to prevent flickering on scroll
   const mobileMapComponent = useMemo(() => {

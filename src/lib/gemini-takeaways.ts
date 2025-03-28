@@ -6,6 +6,47 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY || '');
 const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
+// Rate limiting configuration
+const RATE_LIMIT = {
+  maxRequests: 60, // Maximum requests per minute
+  windowMs: 60 * 1000, // 1 minute window
+  retryAfterMs: 5000, // Wait 5 seconds between retries
+  maxRetries: 3 // Maximum number of retries
+};
+
+// Rate limiting state
+let requestCount = 0;
+let windowStart = Date.now();
+
+// Function to check and update rate limit
+async function checkRateLimit(): Promise<boolean> {
+  const now = Date.now();
+  if (now - windowStart >= RATE_LIMIT.windowMs) {
+    // Reset window
+    requestCount = 0;
+    windowStart = now;
+  }
+  
+  if (requestCount >= RATE_LIMIT.maxRequests) {
+    return false;
+  }
+  
+  requestCount++;
+  return true;
+}
+
+// Function to wait for rate limit window to reset
+async function waitForRateLimit(): Promise<void> {
+  const now = Date.now();
+  const timeToWait = Math.max(0, RATE_LIMIT.windowMs - (now - windowStart));
+  if (timeToWait > 0) {
+    console.log(`Rate limit reached. Waiting ${timeToWait}ms before retrying...`);
+    await new Promise(resolve => setTimeout(resolve, timeToWait));
+    requestCount = 0;
+    windowStart = Date.now();
+  }
+}
+
 // Base interface for takeaways - can be extended for specific use cases
 export interface Takeaways {
   positive_takeaway: string | null; // What's Good
@@ -54,41 +95,49 @@ export async function generateTakeaways(
     contentDescription?: string;
   }
 ): Promise<{ positive_takeaway: string | null; negative_takeaway: string | null }> {
-  try {
-    if (!content || content.length === 0) {
-      console.log('No content provided to generateTakeaways');
-      return {
-        positive_takeaway: null,
-        negative_takeaway: null
-      };
-    }
-
-    console.log(`Generating takeaways for ${content.length} ${context.type} items`);
-    
-    if (!GEMINI_API_KEY) {
-      console.error('Missing GEMINI_API_KEY environment variable');
-      return {
-        positive_takeaway: null,
-        negative_takeaway: null
-      };
-    }
-
-    // Extract text from different content types
-    const contentText = content.map(item => {
-      switch (context.type) {
-        case 'reviews':
-          return `Review (${item.rating || 'NA'} stars): "${item.text || item.body || ''}"`;
-        case 'insights':
-          return `Comment: "${item.body || item.text || ''}" (Sentiment: ${item.sentiment || 'neutral'})`;
-        case 'videos':
-          return `Video comment: "${item.comment || item.text || ''}"`;
-        default:
-          return `Content: "${JSON.stringify(item).substring(0, 500)}"`;
+  let retryCount = 0;
+  
+  while (retryCount <= RATE_LIMIT.maxRetries) {
+    try {
+      if (!content || content.length === 0) {
+        console.log('No content provided to generateTakeaways');
+        return {
+          positive_takeaway: null,
+          negative_takeaway: null
+        };
       }
-    }).join('\n\n');
 
-    // Prepare a smart prompt depending on the content type
-    let prompt = `Analyze the following content about ${context.location || 'a location'} and create two types of safety takeaways for travelers:
+      console.log(`Generating takeaways for ${content.length} ${context.type} items`);
+      
+      if (!GEMINI_API_KEY) {
+        console.error('Missing GEMINI_API_KEY environment variable');
+        return {
+          positive_takeaway: null,
+          negative_takeaway: null
+        };
+      }
+
+      // Check rate limit before making request
+      if (!await checkRateLimit()) {
+        await waitForRateLimit();
+      }
+
+      // Extract text from different content types
+      const contentText = content.map(item => {
+        switch (context.type) {
+          case 'reviews':
+            return `Review (${item.rating || 'NA'} stars): "${item.text || item.body || ''}"`;
+          case 'insights':
+            return `Comment: "${item.body || item.text || ''}" (Sentiment: ${item.sentiment || 'neutral'})`;
+          case 'videos':
+            return `Video comment: "${item.comment || item.text || ''}"`;
+          default:
+            return `Content: "${JSON.stringify(item).substring(0, 500)}"`;
+        }
+      }).join('\n\n');
+
+      // Prepare a smart prompt depending on the content type
+      let prompt = `Analyze the following content about ${context.location || 'a location'} and create two types of safety takeaways for travelers:
 
 ${contentText}
 
@@ -120,38 +169,56 @@ Rules:
 - DO NOT use indirect references like "The comment warns that..." - state the information directly
 - IMPORTANT: Do not write incomplete descriptions or sentences - each point must be complete and standalone`;
 
-    console.log('Calling Gemini API to generate takeaways...');
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    
-    try {
-      // Parse the response
-      const takeaways = JSON.parse(text);
+      console.log('Calling Gemini API to generate takeaways...');
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
       
-      // Format the takeaways
+      try {
+        // Parse the response
+        const takeaways = JSON.parse(text);
+        
+        // Format the takeaways
+        return {
+          positive_takeaway: formatTakeaway(takeaways.positive_takeaway, 'positive'),
+          negative_takeaway: formatTakeaway(takeaways.negative_takeaway, 'negative')
+        };
+      } catch (parseError) {
+        console.error('Error parsing Gemini takeaways response:', parseError);
+        
+        // Try to extract takeaways from the text
+        const positiveMatch = text.match(/"positive_takeaway":\s*"([^"]+)"/);
+        const negativeMatch = text.match(/"negative_takeaway":\s*"([^"]+)"/);
+        
+        return {
+          positive_takeaway: positiveMatch ? formatTakeaway(positiveMatch[1], 'positive') : null,
+          negative_takeaway: negativeMatch ? formatTakeaway(negativeMatch[1], 'negative') : null
+        };
+      }
+    } catch (error: any) {
+      console.error(`Error generating takeaways with Gemini (attempt ${retryCount + 1}/${RATE_LIMIT.maxRetries + 1}):`, error);
+      
+      if (error.status === 429) { // Too Many Requests
+        if (retryCount < RATE_LIMIT.maxRetries) {
+          retryCount++;
+          console.log(`Waiting ${RATE_LIMIT.retryAfterMs}ms before retry ${retryCount}...`);
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT.retryAfterMs));
+          continue;
+        }
+      }
+      
+      // If we've exhausted retries or it's not a rate limit error, return null takeaways
       return {
-        positive_takeaway: formatTakeaway(takeaways.positive_takeaway, 'positive'),
-        negative_takeaway: formatTakeaway(takeaways.negative_takeaway, 'negative')
-      };
-    } catch (parseError) {
-      console.error('Error parsing Gemini takeaways response:', parseError);
-      
-      // Try to extract takeaways from the text
-      const positiveMatch = text.match(/"positive_takeaway":\s*"([^"]+)"/);
-      const negativeMatch = text.match(/"negative_takeaway":\s*"([^"]+)"/);
-      
-      return {
-        positive_takeaway: positiveMatch ? formatTakeaway(positiveMatch[1], 'positive') : null,
-        negative_takeaway: negativeMatch ? formatTakeaway(negativeMatch[1], 'negative') : null
+        positive_takeaway: null,
+        negative_takeaway: null
       };
     }
-  } catch (error) {
-    console.error('Error generating takeaways with Gemini:', error);
-    return {
-      positive_takeaway: null,
-      negative_takeaway: null
-    };
   }
+  
+  // If we've exhausted all retries
+  return {
+    positive_takeaway: null,
+    negative_takeaway: null
+  };
 }
 
 /**

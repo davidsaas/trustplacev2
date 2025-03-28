@@ -2,9 +2,16 @@ import { NextResponse } from 'next/server';
 
 const LA_DATASET_URL = 'https://api.apify.com/v2/datasets/zaa5uKgGaiCddkejc/items?clean=true&format=json';
 
+// Disable caching for this route since the response is too large
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 export async function GET() {
   try {
-    const response = await fetch(LA_DATASET_URL);
+    // Fetch with no-store to prevent caching
+    const response = await fetch(LA_DATASET_URL, {
+      cache: 'no-store',
+    });
     
     if (!response.ok) {
       throw new Error('Failed to fetch listings');
@@ -46,9 +53,15 @@ export async function GET() {
       lastUpdated: new Date().toISOString(),
     }));
 
-    return NextResponse.json({
+    // Return response with no-cache headers
+    return new NextResponse(JSON.stringify({
       success: true,
       data: processedListings,
+    }), {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Content-Type': 'application/json',
+      },
     });
   } catch (error) {
     console.error('Error fetching listings:', error);
@@ -57,7 +70,12 @@ export async function GET() {
         success: false,
         error: 'Failed to fetch listings',
       },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
+      }
     );
   }
 } 

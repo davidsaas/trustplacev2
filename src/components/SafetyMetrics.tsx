@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Shield, Moon, Car, Baby, Train, User } from "lucide-react";
@@ -97,19 +97,53 @@ const getRiskLevel = (score: number): string => {
   return "Maximum Risk";
 };
 
+// Process raw database metrics into SafetyMetric type
+const processMetrics = (data: any[]): SafetyMetric[] => {
+  if (!data || data.length === 0) return [];
+  
+  // Convert the database data to our SafetyMetric type and deduplicate by type
+  const metricsByType = new Map<SafetyMetricType, SafetyMetric>();
+  
+  data.forEach(item => {
+    const type = item.metric_type as SafetyMetricType;
+    // Only set if not already present (since data is ordered by created_at desc)
+    if (!metricsByType.has(type)) {
+      metricsByType.set(type, {
+        type,
+        score: item.score,
+        question: item.question,
+        description: item.description
+      });
+    }
+  });
+  
+  return Array.from(metricsByType.values());
+};
+
 export default function SafetyMetrics({ latitude, longitude, city = "Los Angeles", onOverallScoreCalculated }: SafetyMetricsProps) {
   const [metrics, setMetrics] = useState<SafetyMetric[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 3;
+  const mounted = useRef(true);
+  const lastFetch = useRef<{lat: number, lng: number} | null>(null);
 
   useEffect(() => {
-    let mounted = true;
-    let retryTimeout: NodeJS.Timeout;
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    // Skip if coordinates haven't changed significantly (within 0.0001 degrees ≈ 10m)
+    if (lastFetch.current && 
+        Math.abs(lastFetch.current.lat - latitude) < 0.0001 && 
+        Math.abs(lastFetch.current.lng - longitude) < 0.0001) {
+      return;
+    }
 
     async function fetchSafetyMetrics() {
-      if (!mounted) return;
+      if (!mounted.current) return;
       setLoading(true);
       setError(null);
       
@@ -117,7 +151,6 @@ export default function SafetyMetrics({ latitude, longitude, city = "Los Angeles
         console.log("Fetching safety metrics for coordinates:", { latitude, longitude });
         
         // Query safety metrics from Supabase based on lat/long
-        // We're using a geospatial query with a small radius (0.01 degrees ≈ 1km)
         const { data, error } = await supabase
           .from('safety_metrics')
           .select('*')
@@ -126,95 +159,41 @@ export default function SafetyMetrics({ latitude, longitude, city = "Los Angeles
           .filter('longitude', 'gte', longitude - 0.01)
           .filter('longitude', 'lte', longitude + 0.01)
           .order('created_at', { ascending: false })
-          .limit(5); // Get only the most recent metrics for each type
+          .limit(5);
 
-        if (error) {
-          console.error("Supabase query error:", error);
-          throw error;
-        }
-        
-        if (!mounted) return;
-        
-        console.log("Raw safety metrics data:", data);
-        
-        if (data && data.length > 0) {
-          // Convert the database data to our SafetyMetric type and deduplicate by type
-          const metricsByType = new Map<SafetyMetricType, SafetyMetric>();
-          
-          data.forEach(item => {
-            const type = item.metric_type as SafetyMetricType;
-            // Only set if not already present (since data is ordered by created_at desc)
-            if (!metricsByType.has(type)) {
-              metricsByType.set(type, {
-                type,
-                score: item.score,
-                question: item.question,
-                description: item.description
-              });
-            }
-          });
-          
-          const safetyMetrics = Array.from(metricsByType.values());
-          console.log("Processed safety metrics:", safetyMetrics);
-          
-          if (!mounted) return;
-          setMetrics(safetyMetrics);
-          setRetryCount(0); // Reset retry count on success
-        } else {
-          console.log("No safety metrics found for this location, using defaults");
-          setMetrics([]); // This will trigger the use of default metrics
+        if (error) throw error;
+
+        if (!mounted.current) return;
+
+        // Update last fetch coordinates
+        lastFetch.current = { lat: latitude, lng: longitude };
+
+        // Process and set metrics
+        const processedMetrics = processMetrics(data || []);
+        setMetrics(processedMetrics);
+
+        // Calculate and notify overall score
+        const overallScore = calculateOverallScore(processedMetrics);
+        if (onOverallScoreCalculated) {
+          onOverallScoreCalculated(overallScore);
         }
       } catch (err) {
-        console.error("Error fetching safety metrics:", err);
-        
-        if (!mounted) return;
-        
-        // Implement retry logic
-        if (retryCount < maxRetries) {
-          const nextRetryDelay = Math.min(1000 * Math.pow(2, retryCount), 8000); // Exponential backoff
-          console.log(`Retrying in ${nextRetryDelay}ms (attempt ${retryCount + 1}/${maxRetries})`);
-          
-          retryTimeout = setTimeout(() => {
-            if (mounted) {
-              setRetryCount(prev => prev + 1);
-              fetchSafetyMetrics();
-            }
-          }, nextRetryDelay);
-        } else {
-          setError("Failed to load safety metrics. Please try again later.");
+        console.error('Error fetching safety metrics:', err);
+        if (mounted.current) {
+          setError('Failed to fetch safety metrics');
         }
       } finally {
-        if (mounted) {
+        if (mounted.current) {
           setLoading(false);
         }
       }
     }
 
-    if (latitude && longitude) {
-      fetchSafetyMetrics();
-    } else {
-      console.warn("Missing coordinates:", { latitude, longitude });
-      setLoading(false);
-    }
-
-    return () => {
-      mounted = false;
-      if (retryTimeout) {
-        clearTimeout(retryTimeout);
-      }
-    };
-  }, [latitude, longitude, retryCount]); // Add retryCount to dependencies
+    fetchSafetyMetrics();
+  }, [latitude, longitude, onOverallScoreCalculated]);
 
   // Remove defaultMetrics array and update the displayMetrics logic
   const displayMetrics = metrics;
-
-  // Calculate and update overall score whenever metrics change
-  useEffect(() => {
-    const score = calculateOverallScore(displayMetrics);
-    if (onOverallScoreCalculated) {
-      onOverallScoreCalculated(score);
-    }
-  }, [displayMetrics, onOverallScoreCalculated]);
 
   if (error) {
     return (
